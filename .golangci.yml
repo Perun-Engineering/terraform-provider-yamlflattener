@@ -1,0 +1,39 @@
+version: 2
+
+run:
+  timeout: 5m
+  go: '1.21'
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gosec
+    - revive
+    - bodyclose
+    - misspell
+    - unconvert
+    - unparam
+    - prealloc
+    - gocritic
+    - noctx
+    - nolintlint
+
+linters-settings:
+  gosec:
+    # Select all security rules for scanning
+    includes:
+      - G101-G607
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    # Exclude some linters from running on tests files.
+    - path: _test\.go
+      linters:
+        - gosec
+        - noctx

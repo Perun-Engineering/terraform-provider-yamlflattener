@@ -1,0 +1,32 @@
+# CODEOWNERS file for Terraform YAML Flattener Provider
+#
+# This file defines code owners for different parts of the repository.
+# Code owners will be automatically requested for review on pull requests.
+#
+# For more information, see:
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+* @Perun-Engineering/maintainers
+
+# Core flattening logic
+/internal/flattener/ @Perun-Engineering/core-team
+
+# Provider implementation
+/internal/provider/ @Perun-Engineering/provider-team
+
+# YAML parsing utilities
+/internal/utils/ @Perun-Engineering/core-team
+
+# Build and CI/CD configuration
+/.github/workflows/ @Perun-Engineering/devops
+/scripts/ @Perun-Engineering/devops
+/.goreleaser.yml @Perun-Engineering/devops
+
+# Documentation
+/docs/ @Perun-Engineering/docs
+/README.md @Perun-Engineering/docs
+/CONTRIBUTING.md @Perun-Engineering/docs
+
+# Examples
+/examples/ @Perun-Engineering/docs

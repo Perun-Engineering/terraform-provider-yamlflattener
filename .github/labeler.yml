@@ -1,0 +1,31 @@
+documentation:
+  - changed-files:
+    - any-glob-to-any-file: ['docs/**/*', '*.md', 'examples/**/*.md']
+
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file: ['go.mod', 'go.sum']
+
+testing:
+  - changed-files:
+    - any-glob-to-any-file: ['**/*_test.go']
+
+ci:
+  - changed-files:
+    - any-glob-to-any-file: ['.github/workflows/**/*', '.goreleaser.yml']
+
+provider:
+  - changed-files:
+    - any-glob-to-any-file: ['internal/provider/**/*']
+
+flattener:
+  - changed-files:
+    - any-glob-to-any-file: ['internal/flattener/**/*']
+
+utils:
+  - changed-files:
+    - any-glob-to-any-file: ['internal/utils/**/*']
+
+examples:
+  - changed-files:
+    - any-glob-to-any-file: ['examples/**/*']

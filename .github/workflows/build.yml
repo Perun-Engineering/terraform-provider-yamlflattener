@@ -1,0 +1,314 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'examples/**'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'examples/**'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v ./...
+
+  build:
+    name: Build
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false  # Continue with other builds if one fails
+      matrix:
+        include:
+          # Linux builds
+          - goos: linux
+            goarch: amd64
+            platform: linux-amd64
+          - goos: linux
+            goarch: arm64
+            platform: linux-arm64
+
+          # macOS builds
+          - goos: darwin
+            goarch: amd64
+            platform: darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            platform: darwin-arm64
+
+          # Windows builds
+          - goos: windows
+            goarch: amd64
+            platform: windows-amd64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Build
+        id: build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          # Set binary extension based on OS
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            EXT=".exe"
+          fi
+
+          echo "::group::Building for ${{ matrix.platform }}"
+
+          # Create output directory
+          mkdir -p dist/${{ matrix.platform }}
+
+          # Build the binary with version info
+          BUILD_TIME=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+          GIT_COMMIT=$(git rev-parse HEAD)
+          GIT_VERSION=$(git describe --tags --always --dirty || echo "dev")
+
+          echo "Building terraform-provider-yamlflattener for ${{ matrix.platform }}"
+
+          # Build with version information
+          go build -o dist/${{ matrix.platform }}/terraform-provider-yamlflattener${EXT} \
+            -ldflags "-X main.version=${GIT_VERSION} -X main.commit=${GIT_COMMIT} -X main.buildTime=${BUILD_TIME}" \
+            -v .
+
+          # Create checksum
+          cd dist/${{ matrix.platform }}
+          if command -v sha256sum > /dev/null; then
+            sha256sum terraform-provider-yamlflattener${EXT} > terraform-provider-yamlflattener.sha256
+          else
+            shasum -a 256 terraform-provider-yamlflattener${EXT} > terraform-provider-yamlflattener.sha256
+          fi
+          cd ../../
+
+          echo "::endgroup::"
+
+          # Set output for artifact path
+          echo "artifact_path=dist/${{ matrix.platform }}" >> $GITHUB_OUTPUT
+        continue-on-error: false
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: terraform-provider-yamlflattener-${{ matrix.platform }}
+          path: ${{ steps.build.outputs.artifact_path }}
+          retention-days: 7
+          if-no-files-found: error # Fail if no files are found to upload
+
+  validate:
+    name: Validate
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: ./artifacts
+
+      - name: List artifacts
+        run: |
+          echo "::group::Artifact listing"
+          find ./artifacts -type f | sort
+          echo "::endgroup::"
+
+      - name: Verify checksums
+        id: verify
+        run: |
+          echo "::group::Checksum verification"
+          cd ./artifacts
+
+          # Initialize counters
+          TOTAL=0
+          VERIFIED=0
+          FAILED=0
+
+          # Find all checksum files
+          find . -name "*.sha256" -type f | while read -r checksum_file; do
+            dir=$(dirname "$checksum_file")
+            cd "$dir"
+            base_checksum=$(basename "$checksum_file")
+            binary_file="${base_checksum%.sha256}"
+
+            if [ -f "$binary_file" ]; then
+              echo "Verifying checksum for $dir/$binary_file"
+              TOTAL=$((TOTAL + 1))
+
+              # Verify checksum
+              if command -v sha256sum > /dev/null; then
+                if sha256sum -c "$base_checksum"; then
+                  VERIFIED=$((VERIFIED + 1))
+                else
+                  FAILED=$((FAILED + 1))
+                  echo "::error::Checksum verification failed for $dir/$binary_file"
+                fi
+              else
+                if shasum -a 256 -c "$base_checksum"; then
+                  VERIFIED=$((VERIFIED + 1))
+                else
+                  FAILED=$((FAILED + 1))
+                  echo "::error::Checksum verification failed for $dir/$binary_file"
+                fi
+              fi
+            else
+              echo "::error::Binary file not found for checksum: $dir/$base_checksum"
+              FAILED=$((FAILED + 1))
+            fi
+
+            cd ../../
+          done
+
+          echo "Total binaries: $TOTAL"
+          echo "Verified: $VERIFIED"
+          echo "Failed: $FAILED"
+
+          if [ "$FAILED" -gt 0 ]; then
+            echo "::error::$FAILED checksum verifications failed"
+            exit 1
+          fi
+
+          echo "::endgroup::"
+
+      - name: Test binary execution
+        run: |
+          echo "::group::Binary execution test"
+
+          # Test a Linux binary if available
+          if [ -f "./artifacts/terraform-provider-yamlflattener-linux-amd64/terraform-provider-yamlflattener" ]; then
+            echo "Testing Linux AMD64 binary"
+            chmod +x ./artifacts/terraform-provider-yamlflattener-linux-amd64/terraform-provider-yamlflattener
+            ./artifacts/terraform-provider-yamlflattener-linux-amd64/terraform-provider-yamlflattener -help || echo "Expected error: provider is meant to be executed by Terraform"
+          fi
+
+          echo "::endgroup::"
+
+      - name: Generate build summary
+        if: always()
+        run: |
+          echo "## Build Summary" > $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64; do
+            if [ -d "./artifacts/terraform-provider-yamlflattener-$platform" ]; then
+              echo "| $platform | ✅ Success |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| $platform | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+      - name: Report build status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "✅ Build completed successfully for all architectures"
+          else
+            echo "❌ Build failed for one or more architectures"
+            echo "::error::Build validation failed. Check the logs for details."
+            exit 1
+          fi
+  summary:
+    name: Build Summary
+    needs: [test, build, validate]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Generate build summary
+        run: |
+          echo "# Terraform YAML Flattener Provider Build Results" > $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Test job status
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.test.result }}" == "success" ]; then
+            echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.test.result }}" == "skipped" ]; then
+            echo "⏭️ Tests were skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Tests failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Build job status
+          echo "## Build Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.build.result }}" == "success" ]; then
+            echo "✅ All builds completed successfully" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.build.result }}" == "skipped" ]; then
+            echo "⏭️ Builds were skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ One or more builds failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Validation job status
+          echo "## Validation Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.validate.result }}" == "success" ]; then
+            echo "✅ All artifacts validated successfully" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.validate.result }}" == "skipped" ]; then
+            echo "⏭️ Validation was skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Artifact validation failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Overall status
+          echo "## Overall Status" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.test.result }}" == "success" ] && [ "${{ needs.build.result }}" == "success" ] && [ "${{ needs.validate.result }}" == "success" ]; then
+            echo "✅ **Build workflow completed successfully**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Build workflow failed**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Set workflow status
+        if: always()
+        run: |
+          if [ "${{ needs.test.result }}" != "success" ] || [ "${{ needs.build.result }}" != "success" ] || [ "${{ needs.validate.result }}" != "success" ]; then
+            echo "::error::Build workflow failed. Check the job summary for details."
+            exit 1
+          fi

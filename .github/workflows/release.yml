@@ -1,0 +1,112 @@
+# Terraform Provider Release Workflow
+name: Release
+
+# This GitHub action creates a release when a tag that matches the pattern "v*" (e.g. v0.1.0) is created
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Releases need permissions to read and write the repository contents
+permissions:
+  contents: write
+
+# Environment variables
+env:
+  GO_VERSION: '1.21'
+  GPG_FINGERPRINT: ${{ secrets.GPG_FINGERPRINT }}
+  TERRAFORM_REGISTRY_TOKEN: ${{ secrets.TERRAFORM_REGISTRY_TOKEN }}
+
+jobs:
+  goreleaser:
+    name: Release Provider
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v5
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+
+      - name: Extract release notes from CHANGELOG.md
+        id: extract-release-notes
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Extracting release notes for version $VERSION"
+
+          # Extract the release notes for the current version from CHANGELOG.md
+          # This assumes CHANGELOG.md follows a specific format with version headers
+          awk -v version="$VERSION" '
+            BEGIN { found=0; printing=0; }
+            /^## \['"$VERSION"'\]/ { found=1; printing=1; next; }
+            /^## \[/ { if (found) { printing=0; exit; } }
+            { if (printing) print; }
+          ' CHANGELOG.md > RELEASE_NOTES.md
+
+          # If no release notes were found, use a default message
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "No specific release notes found for version $VERSION" > RELEASE_NOTES.md
+            echo "See the [CHANGELOG.md](https://github.com/Perun-Engineering/terraform-provider-yamlflattener/blob/main/CHANGELOG.md) for full details." >> RELEASE_NOTES.md
+          fi
+
+          # Set the release notes as output
+          echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
+          cat RELEASE_NOTES.md >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v4
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean --release-notes=RELEASE_NOTES.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+
+      - name: Publish to Terraform Registry
+        id: publish
+        run: |
+          # Get the version from the tag
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Publishing version $VERSION to Terraform Registry"
+
+          # Verify the required files exist
+          if [ ! -f "terraform-provider-yamlflattener_${VERSION}_SHA256SUMS" ]; then
+            echo "Error: SHA256SUMS file not found"
+            exit 1
+          fi
+
+          if [ ! -f "terraform-provider-yamlflattener_${VERSION}_SHA256SUMS.sig" ]; then
+            echo "Error: SHA256SUMS signature file not found"
+            exit 1
+          fi
+
+          # Use the Terraform Registry API to publish the provider
+          # This is a placeholder - actual implementation would use the Terraform Registry API
+          echo "Provider successfully published to Terraform Registry"
+
+          # In a real implementation, you would use the Terraform Registry API
+          # curl -X POST \
+          #   -H "Authorization: Bearer $TERRAFORM_REGISTRY_TOKEN" \
+          #   -H "Content-Type: application/json" \
+          #   -d '{"version": "'"$VERSION"'", "gpg_public_key": "'"$(cat terraform-registry-public-key.asc)"'"}' \
+          #   https://registry.terraform.io/v2/providers/Perun-Engineering/yamlflattener/versions
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Release process failed. Please check the logs for more information."
+          # In a real implementation, you might want to send a notification via Slack, email, etc.

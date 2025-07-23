@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Terraform YAML Flattener Provider Documentation
+    url: https://github.com/Perun-Engineering/terraform-provider-yamlflattener/tree/main/docs
+    about: Check the documentation before opening an issue
+  - name: Terraform Registry
+    url: https://registry.terraform.io/providers/Perun-Engineering/yamlflattener/latest
+    about: Visit the provider page on Terraform Registry
+  - name: Security Issue
+    url: https://github.com/Perun-Engineering/terraform-provider-yamlflattener/security/policy
+    about: Please report security vulnerabilities here

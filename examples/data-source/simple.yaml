@@ -1,0 +1,6 @@
+key1: value1
+key2:
+  nested: value2
+array:
+  - name: item1
+  - name: item2

@@ -1,0 +1,117 @@
+name: Build Notifications
+
+on:
+  workflow_run:
+    workflows: ["Build", "Security Scanning", "Release"]
+    types:
+      - completed
+
+# Permissions needed for creating issues
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Get workflow details
+        id: workflow-details
+        run: |
+          echo "workflow_name=${{ github.event.workflow_run.name }}" >> $GITHUB_OUTPUT
+          echo "workflow_url=${{ github.event.workflow_run.html_url }}" >> $GITHUB_OUTPUT
+          echo "repo_name=${{ github.repository }}" >> $GITHUB_OUTPUT
+          echo "run_id=${{ github.event.workflow_run.id }}" >> $GITHUB_OUTPUT
+          echo "actor=${{ github.event.workflow_run.actor.login }}" >> $GITHUB_OUTPUT
+          echo "conclusion=${{ github.event.workflow_run.conclusion }}" >> $GITHUB_OUTPUT
+
+      - name: Send Slack notification
+        if: ${{ env.SLACK_WEBHOOK_URL != '' }}
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "text": "⚠️ Workflow Failure Alert",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "⚠️ Workflow Failure Alert",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Workflow:* ${{ steps.workflow-details.outputs.workflow_name }}\n*Repository:* ${{ steps.workflow-details.outputs.repo_name }}\n*Triggered by:* ${{ steps.workflow-details.outputs.actor }}"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "The workflow has failed. Please check the logs for more details."
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow Run",
+                        "emoji": true
+                      },
+                      "url": "${{ steps.workflow-details.outputs.workflow_url }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+      - name: Send email notification
+        if: ${{ env.EMAIL_NOTIFICATION_ENABLED == 'true' }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "[${{ steps.workflow-details.outputs.repo_name }}] Workflow Failure: ${{ steps.workflow-details.outputs.workflow_name }}"
+          body: |
+            Workflow "${{ steps.workflow-details.outputs.workflow_name }}" has failed.
+
+            Repository: ${{ steps.workflow-details.outputs.repo_name }}
+            Triggered by: ${{ steps.workflow-details.outputs.actor }}
+
+            View the workflow run here: ${{ steps.workflow-details.outputs.workflow_url }}
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: GitHub Actions
+        env:
+          EMAIL_NOTIFICATION_ENABLED: ${{ secrets.EMAIL_NOTIFICATION_ENABLED }}
+
+      - name: Create GitHub issue for critical failures
+        if: ${{ github.event.workflow_run.name == 'Release' || github.event.workflow_run.name == 'Security Scanning' }}
+        uses: JasonEtco/create-an-issue@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          workflow_name: ${{ steps.workflow-details.outputs.workflow_name }}
+          workflow_url: ${{ steps.workflow-details.outputs.workflow_url }}
+          repo_name: ${{ steps.workflow-details.outputs.repo_name }}
+          run_id: ${{ steps.workflow-details.outputs.run_id }}
+          actor: ${{ steps.workflow-details.outputs.actor }}
+        with:
+          filename: .github/ISSUE_TEMPLATE/workflow-failure.md
+          update_existing: true
+          search_existing: open
