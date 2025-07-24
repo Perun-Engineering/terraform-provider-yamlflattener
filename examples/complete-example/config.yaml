@@ -1,0 +1,56 @@
+external_config:
+  source: "external_file"
+  loaded_at: "runtime"
+
+services:
+  web:
+    replicas: 3
+    image: "nginx:latest"
+    ports:
+      - container: 80
+        host: 8080
+      - container: 443
+        host: 8443
+    environment:
+      - name: "ENV"
+        value: "production"
+      - name: "DEBUG"
+        value: "false"
+
+  api:
+    replicas: 2
+    image: "api:v1.2.3"
+    ports:
+      - container: 3000
+        host: 3000
+    environment:
+      - name: "NODE_ENV"
+        value: "production"
+      - name: "API_KEY"
+        value: "secret-key"
+
+storage:
+  volumes:
+    - name: "data"
+      type: "persistent"
+      size: "10Gi"
+      mount_path: "/data"
+    - name: "logs"
+      type: "ephemeral"
+      size: "1Gi"
+      mount_path: "/logs"
+
+networking:
+  ingress:
+    enabled: true
+    host: "example.com"
+    tls:
+      enabled: true
+      secret_name: "tls-secret"
+    rules:
+      - path: "/"
+        service: "web"
+        port: 80
+      - path: "/api"
+        service: "api"
+        port: 3000

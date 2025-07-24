@@ -1,0 +1,112 @@
+name: Security Updates
+
+on:
+  schedule:
+    # Run weekly on Monday at 2:00 AM UTC
+    - cron: '0 2 * * 1'
+  workflow_dispatch:  # Allow manual triggering
+
+# Permissions needed for creating issues and PRs
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: false
+
+
+      - name: Run Go security audit
+        id: audit
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck -json ./... > govulncheck-report.json
+          echo "vuln_issues=$(jq 'length' govulncheck-report.json)" >> $GITHUB_OUTPUT
+
+      - name: Upload Go vulnerability report
+        uses: actions/upload-artifact@v4
+        with:
+          name: govulncheck-report
+          path: govulncheck-report.json
+          retention-days: 30
+
+      - name: Create security issue if vulnerabilities found
+        if: ${{ steps.audit.outputs.vuln_issues > 0 }}
+        uses: JasonEtco/create-an-issue@v2.9.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VULN_ISSUES: ${{ steps.audit.outputs.vuln_issues }}
+        with:
+          filename: .github/ISSUE_TEMPLATE/security-vulnerabilities.md
+          update_existing: true
+          search_existing: open
+
+  dependency-updates:
+    name: Dependency Updates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: false
+
+      - name: Check for outdated dependencies
+        id: outdated
+        run: |
+          go install github.com/psampaz/go-mod-outdated@latest
+          go list -u -m -json all | go-mod-outdated -update -direct -ci > outdated-deps.txt
+          echo "outdated_deps=$(cat outdated-deps.txt | grep -c '\[OUTDATED\]')" >> $GITHUB_OUTPUT
+
+      - name: Upload outdated dependencies report
+        uses: actions/upload-artifact@v4
+        with:
+          name: outdated-dependencies
+          path: outdated-deps.txt
+          retention-days: 30
+
+      - name: Create dependency update PR if needed
+        if: ${{ steps.outdated.outputs.outdated_deps > 0 }}
+        run: |
+          # Set up Git user
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+          # Create a new branch
+          BRANCH_NAME="deps/security-updates-$(date +%Y-%m-%d)"
+          git checkout -b $BRANCH_NAME
+
+          # Update dependencies
+          go get -u ./...
+          go mod tidy
+
+          # Commit changes
+          git add go.mod go.sum
+          git commit -m "deps: update dependencies for security fixes"
+
+          # Push changes
+          git push origin $BRANCH_NAME
+
+          # Create PR using GitHub CLI
+          gh pr create \
+            --title "Security: Update dependencies $(date +%Y-%m-%d)" \
+            --body "This PR updates dependencies to fix security vulnerabilities and keep dependencies up to date.\n\nAutomatically created by the Security Updates workflow." \
+            --label "dependencies,security" \
+            --base main \
+            --head $BRANCH_NAME
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

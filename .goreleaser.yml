@@ -1,0 +1,116 @@
+# GoReleaser configuration for terraform-provider-yamlflattener
+# This file configures the release process for the provider
+
+version: 2
+
+project_name: terraform-provider-yamlflattener
+
+# Build settings
+builds:
+  - env:
+      # Use Go modules
+      - CGO_ENABLED=0
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - '-s -w -X main.version={{.Version}} -X main.commit={{.Commit}}'
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    binary: '{{ .ProjectName }}_v{{ .Version }}'
+
+# Archive settings
+archives:
+  - formats: zip
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    files:
+      - none*
+
+# Checksum settings
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_SHA256SUMS'
+  algorithm: sha256
+  extra_files:
+    - glob: './terraform-provider-yamlflattener_*_manifest.json'
+
+# Signing settings
+signs:
+  - artifacts: checksum
+    args:
+      # If you are using this in a GitHub action or some CI system
+      # then you need to pass the batch flag to indicate its not interactive.
+      - "--batch"
+      - "--local-user"
+      - "{{ .Env.GPG_FINGERPRINT }}" # Set this environment variable for your signing key
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+
+# Release settings
+release:
+  # Visit your project's GitHub Releases page to publish this release.
+  github:
+    owner: Perun-Engineering
+    name: terraform-provider-yamlflattener
+  draft: true
+  prerelease: auto
+  mode: replace
+  extra_files:
+    - glob: ./terraform-provider-yamlflattener_*_manifest.json
+  header: |
+    ## {{ .ProjectName }} v{{ .Version }}
+
+    This release includes various bug fixes and improvements.
+
+    See the [CHANGELOG.md](https://github.com/Perun-Engineering/terraform-provider-yamlflattener/blob/main/CHANGELOG.md) for more details.
+
+  footer: |
+    ## Installation
+
+    ### Using Terraform Registry
+
+    ```hcl
+    terraform {
+      required_providers {
+        yamlflattener = {
+          source = "Perun-Engineering/yamlflattener"
+          version = "{{ .Version }}"
+        }
+      }
+    }
+    ```
+
+    ### Manual Installation
+
+    Download the appropriate binary for your platform from the releases page and follow the [Terraform plugin installation instructions](https://www.terraform.io/docs/plugins/basics.html#installing-plugins).
+
+# Terraform Provider specific settings
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch
+
+# Terraform Registry artifacts are created through the standard release process
+
+# Generate a terraform registry manifest file
+before:
+  hooks:
+    - go mod tidy
+    - go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
+    - go generate ./...
+    # Create terraform registry manifest
+    - ./scripts/create-manifest.sh

@@ -1,0 +1,113 @@
+# Terraform Provider Release Workflow
+name: Release
+
+# This GitHub action creates a release when a tag that matches the pattern "v*" (e.g. v0.1.0) is created
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Releases need permissions to read and write the repository contents
+permissions:
+  contents: write
+
+# Environment variables
+env:
+  GO_VERSION: '1.24'
+  GPG_FINGERPRINT: ${{ secrets.GPG_FINGERPRINT }}
+  TERRAFORM_REGISTRY_TOKEN: ${{ secrets.TERRAFORM_REGISTRY_TOKEN }}
+
+jobs:
+  goreleaser:
+    name: Release Provider
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: false
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "latest"
+          terraform_wrapper: false
+
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+
+      - name: Extract release notes from CHANGELOG.md
+        id: extract-release-notes
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Extracting release notes for version $VERSION"
+
+          # Extract the release notes for the current version from CHANGELOG.md
+          # This assumes CHANGELOG.md follows a specific format with version headers
+          awk -v version="$VERSION" '
+            BEGIN { found=0; printing=0; }
+            /^## \['"$VERSION"'\]/ { found=1; printing=1; next; }
+            /^## \[/ { if (found) { printing=0; exit; } }
+            { if (printing) print; }
+          ' CHANGELOG.md > /tmp/RELEASE_NOTES.md
+
+          # If no release notes were found, use a default message
+          if [ ! -s /tmp/RELEASE_NOTES.md ]; then
+            echo "No specific release notes found for version $VERSION" > /tmp/RELEASE_NOTES.md
+            echo "See the [CHANGELOG.md](https://github.com/Perun-Engineering/terraform-provider-yamlflattener/blob/main/CHANGELOG.md) for full details." >> /tmp/RELEASE_NOTES.md
+          fi
+
+          # Set the release notes as output
+          echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
+          cat /tmp/RELEASE_NOTES.md >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: v2.11.0
+          args: release --clean --release-notes=/tmp/RELEASE_NOTES.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+
+      - name: Verify release artifacts
+        run: |
+          # Get the version from the tag
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Verifying release artifacts for version $VERSION"
+
+          # List all created files
+          ls -la
+          echo "Contents of dist directory:"
+          ls -la dist/
+
+          # Verify the required files exist in dist directory
+          if [ ! -f "dist/terraform-provider-yamlflattener_${VERSION}_SHA256SUMS" ]; then
+            echo "Error: SHA256SUMS file not found in dist/"
+            exit 1
+          fi
+
+          if [ ! -f "dist/terraform-provider-yamlflattener_${VERSION}_SHA256SUMS.sig" ]; then
+            echo "Error: SHA256SUMS signature file not found in dist/"
+            exit 1
+          fi
+
+          echo "All required artifacts verified for Terraform Registry publishing"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Release process failed. Please check the logs for more information."
+          # In a real implementation, you might want to send a notification via Slack, email, etc.
