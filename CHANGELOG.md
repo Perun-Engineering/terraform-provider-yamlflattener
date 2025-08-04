@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [0.2.1] - 2025-01-04
+
+### Fixed
+- Fixed order preservation issue where Go maps were losing YAML key order
+- Implemented OrderedMap data structure to maintain true insertion order
+- Keys now appear in the exact order they exist in the original YAML
+
 ## [0.2.0] - 2025-01-04
 
 ### Added
