@@ -105,7 +105,7 @@ func (d *flattenDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	flattenerInstance.MaxNestingDepth = 100          // Prevent stack overflow
 	flattenerInstance.MaxResultSize = 100000         // Limit result size
 
-	var flattenedMap map[string]string
+	var orderedResult *flattener.OrderedMap
 	var err error
 
 	// Process based on input type with additional security measures
@@ -121,7 +121,7 @@ func (d *flattenDataSource) Read(ctx context.Context, req datasource.ReadRequest
 			return
 		}
 
-		flattenedMap, err = flattenerInstance.FlattenYAMLString(yamlContent)
+		orderedResult, err = flattenerInstance.FlattenYAMLString(yamlContent)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Failed to Flatten YAML Content",
@@ -141,7 +141,8 @@ func (d *flattenDataSource) Read(ctx context.Context, req datasource.ReadRequest
 			return
 		}
 
-		flattenedMap, err = flattenerInstance.FlattenYAMLFile(yamlFile)
+		// For file input, use the file method directly
+		orderedResult, err = flattenerInstance.FlattenYAMLFile(yamlFile)
 		if err != nil {
 			resp.Diagnostics.AddError(
 				"Failed to Flatten YAML File",
@@ -151,10 +152,11 @@ func (d *flattenDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		}
 	}
 
-	// Convert map[string]string to types.Map
-	elements := make(map[string]attr.Value, len(flattenedMap))
-	for k, v := range flattenedMap {
-		elements[k] = types.StringValue(v)
+	// Convert OrderedMap to types.Map using ordered iteration to preserve key order
+	elements := make(map[string]attr.Value, orderedResult.Len())
+	for _, key := range orderedResult.Keys() { // Iterate in insertion order!
+		value, _ := orderedResult.Get(key)
+		elements[key] = types.StringValue(value)
 	}
 
 	resultMap, diags := types.MapValue(types.StringType, elements)

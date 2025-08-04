@@ -112,8 +112,8 @@ empty_object: {}
 			}
 
 			if !tt.wantErr {
-				if !reflect.DeepEqual(result, tt.expected) {
-					t.Errorf("FlattenYAMLString() = %v, want %v", result, tt.expected)
+				if !reflect.DeepEqual(result.ToMap(), tt.expected) {
+					t.Errorf("FlattenYAMLString() = %v, want %v", result.ToMap(), tt.expected)
 				}
 			}
 		})
@@ -196,8 +196,8 @@ mixed_array:
 			}
 
 			if !tt.wantErr {
-				if !reflect.DeepEqual(result, tt.expected) {
-					t.Errorf("FlattenYAMLString() = %v, want %v", result, tt.expected)
+				if !reflect.DeepEqual(result.ToMap(), tt.expected) {
+					t.Errorf("FlattenYAMLString() = %v, want %v", result.ToMap(), tt.expected)
 				}
 			}
 		})
@@ -254,8 +254,8 @@ func TestFlattenYAMLFile(t *testing.T) {
 				return
 			}
 
-			if !tt.wantErr && !reflect.DeepEqual(result, tt.expected) {
-				t.Errorf("FlattenYAMLFile() = %v, want %v", result, tt.expected)
+			if !tt.wantErr && !reflect.DeepEqual(result.ToMap(), tt.expected) {
+				t.Errorf("FlattenYAMLFile() = %v, want %v", result.ToMap(), tt.expected)
 			}
 		})
 	}

@@ -19,32 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-## [0.2.1] - 2025-01-04
-
-### Fixed
-- Fixed order preservation issue where Go maps were losing YAML key order
-- Implemented OrderedMap data structure to maintain true insertion order
-- Keys now appear in the exact order they exist in the original YAML
-
 ## [0.2.0] - 2025-01-04
 
 ### Added
-- Order preservation: YAML key order is now preserved during flattening for consistent and predictable results
-- Comprehensive order preservation tests
-- Performance improvements with single-pass parsing
+- **True Order Preservation**: YAML key order is now perfectly preserved during flattening for consistent and predictable results
+- **OrderedMap Implementation**: Internal ordered data structure ensures iteration order matches YAML order
+- **Simplified API**: Single implementation that always preserves order
 
 ### Changed
-- Removed legacy interface{}-based flattening system (~88 lines of redundant code)
-- Keep only yaml.Node-based implementation for order preservation
-- Extract common validation and prefix building logic
-- Update tests to use single implementation
-- Updated documentation with Key Features section highlighting order preservation
-- Updated examples with working provider function usage
-- Improved documentation consistency
+- **BREAKING**: All flattening methods now return `*OrderedMap` instead of `map[string]string`
+- **Unified Implementation**: Removed redundant methods, keeping only ordered versions
+- **Provider Integration**: Data source and function now use ordered iteration to maintain key sequence
 
 ### Fixed
-- Fixed provider source references for CI compatibility
-- Corrected example configurations
+- **Order Consistency**: Fixed issue where Go's random map iteration was losing YAML key order
+- **Terraform Display**: Keys now appear in correct order in Terraform output
+
+### Performance
+- **Single-Pass Processing**: Optimized flattening with unified ordered implementation
+- **Memory Efficient**: OrderedMap provides better memory usage patterns
 
 ## [0.1.0] - 2024-12-XX
 

@@ -92,7 +92,7 @@ func TestLargeYAMLPerformance(t *testing.T) {
 			}
 
 			t.Logf("Flattened %s in %v, resulting in %d key-value pairs",
-				tt.name, duration, len(result))
+				tt.name, duration, result.Len())
 
 			if duration > tt.maxTime {
 				t.Errorf("Performance test failed: processing took %v, which exceeds maximum allowed time of %v",

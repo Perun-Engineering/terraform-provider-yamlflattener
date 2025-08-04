@@ -62,9 +62,9 @@ func buildPrefix(prefix, key string) string {
 	return prefix + "." + key
 }
 
-// FlattenYAMLString takes a YAML string and flattens it into a map with dot notation
-// This version preserves the original order from the YAML document
-func (f *Flattener) FlattenYAMLString(yamlContent string) (map[string]string, error) {
+// FlattenYAMLString takes a YAML string and flattens it into an OrderedMap
+// This preserves key order from the YAML document
+func (f *Flattener) FlattenYAMLString(yamlContent string) (*OrderedMap, error) {
 	if yamlContent == "" {
 		return nil, fmt.Errorf("YAML content cannot be empty")
 	}
@@ -102,24 +102,24 @@ func (f *Flattener) FlattenYAMLString(yamlContent string) (map[string]string, er
 	return f.FlattenYAMLNode(&yamlNode)
 }
 
-// FlattenYAMLNode takes a parsed YAML Node and flattens it into a map with dot notation
+// FlattenYAMLNode takes a parsed YAML Node and flattens it into an OrderedMap
 // This preserves the original document order
-func (f *Flattener) FlattenYAMLNode(node *yaml.Node) (map[string]string, error) {
+func (f *Flattener) FlattenYAMLNode(node *yaml.Node) (*OrderedMap, error) {
 	if node == nil {
 		return nil, fmt.Errorf("cannot flatten nil YAML node")
 	}
 
-	orderedResult := NewOrderedMap()
-	err := f.flattenNodeWithDepthOrdered(node, "", orderedResult, 0)
+	result := NewOrderedMap()
+	err := f.flattenNode(node, "", result, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	return orderedResult.ToMap(), nil
+	return result, nil
 }
 
-// flattenNodeWithDepthOrdered recursively flattens a YAML node with the given prefix and tracks depth using ordered map
-func (f *Flattener) flattenNodeWithDepthOrdered(node *yaml.Node, prefix string, result *OrderedMap, depth int) error {
+// flattenNode recursively flattens a YAML node with depth tracking
+func (f *Flattener) flattenNode(node *yaml.Node, prefix string, result *OrderedMap, depth int) error {
 	if err := f.validateDepthAndSize(depth, result.Len()); err != nil {
 		return err
 	}
@@ -128,12 +128,12 @@ func (f *Flattener) flattenNodeWithDepthOrdered(node *yaml.Node, prefix string, 
 	case yaml.DocumentNode:
 		// Document node - process its content
 		if len(node.Content) > 0 {
-			return f.flattenNodeWithDepthOrdered(node.Content[0], prefix, result, depth)
+			return f.flattenNode(node.Content[0], prefix, result, depth)
 		}
 	case yaml.MappingNode:
-		return f.flattenMappingNodeWithDepthOrdered(node, prefix, result, depth+1)
+		return f.flattenMappingNode(node, prefix, result, depth+1)
 	case yaml.SequenceNode:
-		return f.flattenSequenceNodeWithDepthOrdered(node, prefix, result, depth+1)
+		return f.flattenSequenceNode(node, prefix, result, depth+1)
 	case yaml.ScalarNode:
 		// Handle null values specially
 		if node.Tag == "!!null" || node.Value == "null" || node.Value == "~" || node.Value == "" {
@@ -144,17 +144,21 @@ func (f *Flattener) flattenNodeWithDepthOrdered(node *yaml.Node, prefix string, 
 	case yaml.AliasNode:
 		// Handle alias nodes by following the alias
 		if node.Alias != nil {
-			return f.flattenNodeWithDepthOrdered(node.Alias, prefix, result, depth)
+			return f.flattenNode(node.Alias, prefix, result, depth)
 		}
 	}
 
 	return nil
 }
 
-// flattenMappingNodeWithDepthOrdered flattens a mapping node preserving key order
-func (f *Flattener) flattenMappingNodeWithDepthOrdered(node *yaml.Node, prefix string, result *OrderedMap, depth int) error {
+// flattenMappingNode flattens a mapping node preserving key order
+func (f *Flattener) flattenMappingNode(node *yaml.Node, prefix string, result *OrderedMap, depth int) error {
 	// Process key-value pairs in order
 	for i := 0; i < len(node.Content); i += 2 {
+		if i+1 >= len(node.Content) {
+			break // Malformed mapping, skip
+		}
+
 		keyNode := node.Content[i]
 		valueNode := node.Content[i+1]
 
@@ -166,26 +170,26 @@ func (f *Flattener) flattenMappingNodeWithDepthOrdered(node *yaml.Node, prefix s
 		key := sanitizeKey(keyNode.Value)
 		newPrefix := buildPrefix(prefix, key)
 
-		if err := f.flattenNodeWithDepthOrdered(valueNode, newPrefix, result, depth); err != nil {
+		if err := f.flattenNode(valueNode, newPrefix, result, depth); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// flattenSequenceNodeWithDepthOrdered flattens a sequence node preserving element order
-func (f *Flattener) flattenSequenceNodeWithDepthOrdered(node *yaml.Node, prefix string, result *OrderedMap, depth int) error {
+// flattenSequenceNode flattens a sequence node preserving element order
+func (f *Flattener) flattenSequenceNode(node *yaml.Node, prefix string, result *OrderedMap, depth int) error {
 	for i, childNode := range node.Content {
 		newPrefix := fmt.Sprintf("%s[%d]", prefix, i)
-		if err := f.flattenNodeWithDepthOrdered(childNode, newPrefix, result, depth); err != nil {
+		if err := f.flattenNode(childNode, newPrefix, result, depth); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// FlattenYAMLFile reads a YAML file and flattens its content into a map with dot notation
-func (f *Flattener) FlattenYAMLFile(filePath string) (map[string]string, error) {
+// FlattenYAMLFile reads a YAML file and flattens its content into an OrderedMap
+func (f *Flattener) FlattenYAMLFile(filePath string) (*OrderedMap, error) {
 	// Validate and sanitize file path
 	cleanPath, err := validateFilePath(filePath)
 	if err != nil {

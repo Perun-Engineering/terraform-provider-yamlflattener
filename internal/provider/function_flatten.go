@@ -85,16 +85,17 @@ func (f *flattenFunction) Run(ctx context.Context, req function.RunRequest, resp
 	flattenerInstance.MaxNestingDepth = 100     // Prevent stack overflow
 	flattenerInstance.MaxResultSize = 100000    // Limit result size
 
-	flattenedMap, err := flattenerInstance.FlattenYAMLString(yamlContent)
+	orderedResult, err := flattenerInstance.FlattenYAMLString(yamlContent)
 	if err != nil {
 		resp.Error = function.ConcatFuncErrors(resp.Error, function.NewFuncError("Failed to flatten YAML: "+err.Error()))
 		return
 	}
 
-	// Convert map[string]string to types.Map
-	elements := make(map[string]attr.Value, len(flattenedMap))
-	for k, v := range flattenedMap {
-		elements[k] = types.StringValue(v)
+	// Convert OrderedMap to types.Map using ordered iteration to preserve key order
+	elements := make(map[string]attr.Value, orderedResult.Len())
+	for _, key := range orderedResult.Keys() { // Iterate in insertion order!
+		value, _ := orderedResult.Get(key)
+		elements[key] = types.StringValue(value)
 	}
 
 	resultMap, diags := types.MapValue(types.StringType, elements)

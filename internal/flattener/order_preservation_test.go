@@ -64,8 +64,8 @@ beta: second`,
 				t.Fatalf("FlattenYAMLString() error = %v", err)
 			}
 
-			if !reflect.DeepEqual(result, tt.expected) {
-				t.Errorf("FlattenYAMLString() = %v, want %v", result, tt.expected)
+			if !reflect.DeepEqual(result.ToMap(), tt.expected) {
+				t.Errorf("FlattenYAMLString() = %v, want %v", result.ToMap(), tt.expected)
 			}
 
 			// Run multiple times to ensure consistency
@@ -75,7 +75,7 @@ beta: second`,
 					t.Fatalf("Run %d: FlattenYAMLString() error = %v", i+1, err)
 				}
 
-				if !reflect.DeepEqual(result2, result) {
+				if !reflect.DeepEqual(result2.Keys(), result.Keys()) || !reflect.DeepEqual(result2.ToMap(), result.ToMap()) {
 					t.Errorf("Run %d: Results are not consistent", i+1)
 				}
 			}
@@ -93,7 +93,7 @@ discord_config:
 other_field: value`
 
 	// Run multiple times and ensure the same result
-	var firstResult map[string]string
+	var firstResult *OrderedMap
 	for i := 0; i < 5; i++ {
 		result, err := flattener.FlattenYAMLString(yamlStr)
 		if err != nil {
@@ -102,10 +102,18 @@ other_field: value`
 
 		if i == 0 {
 			firstResult = result
-		} else if !reflect.DeepEqual(result, firstResult) {
-			t.Errorf("Run %d: Results are not consistent with first run", i+1)
-			t.Errorf("First result: %v", firstResult)
-			t.Errorf("Current result: %v", result)
+		} else {
+			// Compare the keys and values
+			if !reflect.DeepEqual(result.Keys(), firstResult.Keys()) {
+				t.Errorf("Run %d: Key order is not consistent with first run", i+1)
+				t.Errorf("First result keys: %v", firstResult.Keys())
+				t.Errorf("Current result keys: %v", result.Keys())
+			}
+			if !reflect.DeepEqual(result.ToMap(), firstResult.ToMap()) {
+				t.Errorf("Run %d: Values are not consistent with first run", i+1)
+				t.Errorf("First result: %v", firstResult.ToMap())
+				t.Errorf("Current result: %v", result.ToMap())
+			}
 		}
 	}
 }

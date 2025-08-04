@@ -2,14 +2,10 @@ terraform {
   required_version = ">= 1.0"
   required_providers {
     yamlflattener = {
-      source  = "perun-engineering/yamlflattener"
+      source  = "Perun-Engineering/yamlflattener"
       version = ">= 0.2.0"
     }
   }
-}
-
-provider "yamlflattener" {
-  max_depth = 100
 }
 
 # Example 1: Using data source with inline YAML content
