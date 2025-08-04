@@ -2,7 +2,7 @@ terraform {
   required_version = ">= 1.0"
   required_providers {
     yamlflattener = {
-      source  = "registry.terraform.io/terraform/yamlflattener"
+      source  = "Perun-Engineering/yamlflattener"
       version = ">= 0.1.0"
     }
   }
@@ -151,25 +151,25 @@ output "redis_endpoints" {
   ]
 }
 
-# Feature flags using provider function
-output "authentication_enabled" {
-  description = "Authentication feature flag"
-  value       = local.flattened_features["features.authentication.enabled"]
-}
+# Feature flags using provider function (requires Terraform 1.8+)
+# output "authentication_enabled" {
+#   description = "Authentication feature flag"
+#   value       = local.flattened_features["features.authentication.enabled"]
+# }
 
-output "oauth_client_id" {
-  description = "OAuth client ID from feature flags"
-  value       = local.flattened_features["features.authentication.providers[0].config.client_id"]
-}
+# output "oauth_client_id" {
+#   description = "OAuth client ID from feature flags"
+#   value       = local.flattened_features["features.authentication.providers[0].config.client_id"]
+# }
 
-output "api_rate_limit" {
-  description = "API rate limit configuration"
-  value = {
-    rate_limit     = local.flattened_features["features.api_limits.rate_limit"]
-    burst_limit    = local.flattened_features["features.api_limits.burst_limit"]
-    per_user_limit = local.flattened_features["features.api_limits.per_user_limit"]
-  }
-}
+# output "api_rate_limit" {
+#   description = "API rate limit configuration"
+#   value = {
+#     rate_limit     = local.flattened_features["features.api_limits.rate_limit"]
+#     burst_limit    = local.flattened_features["features.api_limits.burst_limit"]
+#     per_user_limit = local.flattened_features["features.api_limits.per_user_limit"]
+#   }
+# }
 
 # Demonstrate equivalence between data source and function
 output "equivalence_test" {
@@ -185,6 +185,12 @@ output "equivalence_test" {
 output "all_flattened_keys" {
   description = "All flattened keys from the configuration"
   value       = keys(data.yamlflattener_flatten.app_config.flattened)
+}
+
+# Show external config flattened keys
+output "external_config_keys" {
+  description = "All flattened keys from external config file"
+  value       = keys(data.yamlflattener_flatten.external_config.flattened)
 }
 
 # Complex nested structure demonstration
