@@ -8,16 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial implementation of YAML flattening provider
-- Data source for declarative YAML flattening
-- Provider function for inline YAML flattening
-- Support for nested objects with dot notation
-- Support for arrays with bracket notation
-- Multiple input methods (direct content and file path)
-- Comprehensive error handling and validation
-- Cross-platform binary builds
-- Automated security scanning
-- Terraform Registry publishing workflow
 
 ### Changed
 
@@ -29,7 +19,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-## [1.0.0] - TBD
+## [0.2.0] - 2025-01-04
+
+### Added
+- Order preservation: YAML key order is now preserved during flattening for consistent and predictable results
+- Comprehensive order preservation tests
+- Performance improvements with single-pass parsing
+
+### Changed
+- Removed legacy interface{}-based flattening system (~88 lines of redundant code)
+- Keep only yaml.Node-based implementation for order preservation
+- Extract common validation and prefix building logic
+- Update tests to use single implementation
+- Updated documentation with Key Features section highlighting order preservation
+- Updated examples with working provider function usage
+- Improved documentation consistency
+
+### Fixed
+- Fixed provider source references for CI compatibility
+- Corrected example configurations
+
+## [0.1.0] - 2024-12-XX
 
 ### Added
 - Initial release of terraform-provider-yamlflattener
