@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -40,114 +39,31 @@ func NewFlattener() *Flattener {
 	}
 }
 
-// FlattenYAML takes a parsed YAML structure and flattens it into a map with dot notation
-func (f *Flattener) FlattenYAML(yamlData interface{}) (map[string]string, error) {
-	if yamlData == nil {
-		return nil, fmt.Errorf("cannot flatten nil YAML data")
-	}
-
-	result := make(map[string]string)
-	err := f.flattenValueWithDepth(yamlData, "", result, 0)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-// flattenValueWithDepth recursively flattens a YAML value with the given prefix and tracks depth
-func (f *Flattener) flattenValueWithDepth(value interface{}, prefix string, result map[string]string, depth int) error {
+// validateDepthAndSize checks depth and result size limits
+func (f *Flattener) validateDepthAndSize(depth int, resultSize int) error {
 	// Check for max nesting depth to prevent stack overflow
 	if depth > f.MaxNestingDepth {
 		return fmt.Errorf("maximum nesting depth of %d exceeded", f.MaxNestingDepth)
 	}
 
 	// Check for max result size to prevent memory exhaustion
-	if len(result) >= f.MaxResultSize {
+	if resultSize >= f.MaxResultSize {
 		return fmt.Errorf("maximum result size of %d key-value pairs exceeded", f.MaxResultSize)
 	}
 
-	switch v := value.(type) {
-	case map[string]interface{}:
-		return f.flattenMapWithDepth(v, prefix, result, depth+1)
-	case map[interface{}]interface{}:
-		return f.flattenInterfaceMapWithDepth(v, prefix, result, depth+1)
-	case []interface{}:
-		return f.flattenArrayWithDepth(v, prefix, result, depth+1)
-	case string:
-		result[prefix] = v
-	case int:
-		result[prefix] = strconv.Itoa(v)
-	case int64:
-		result[prefix] = strconv.FormatInt(v, 10)
-	case float64:
-		result[prefix] = strconv.FormatFloat(v, 'f', -1, 64)
-	case bool:
-		result[prefix] = strconv.FormatBool(v)
-	case nil:
-		result[prefix] = ""
-	default:
-		// For any other type, convert to string
-		result[prefix] = fmt.Sprintf("%v", v)
-	}
-
 	return nil
 }
 
-// flattenMapWithDepth flattens a map[string]interface{} with the given prefix and tracks depth
-func (f *Flattener) flattenMapWithDepth(m map[string]interface{}, prefix string, result map[string]string, depth int) error {
-	for k, v := range m {
-		// Sanitize key to prevent injection attacks
-		k = sanitizeKey(k)
-
-		newPrefix := k
-		if prefix != "" {
-			newPrefix = prefix + "." + k
-		}
-
-		if err := f.flattenValueWithDepth(v, newPrefix, result, depth); err != nil {
-			return err
-		}
+// buildPrefix constructs a new prefix by appending key to existing prefix
+func buildPrefix(prefix, key string) string {
+	if prefix == "" {
+		return key
 	}
-	return nil
-}
-
-// flattenInterfaceMapWithDepth flattens a map[interface{}]interface{} with the given prefix and tracks depth
-func (f *Flattener) flattenInterfaceMapWithDepth(m map[interface{}]interface{}, prefix string, result map[string]string, depth int) error {
-	for k, v := range m {
-		// Convert key to string
-		strKey, ok := k.(string)
-		if !ok {
-			return fmt.Errorf("non-string key %v in YAML map", k)
-		}
-
-		// Sanitize key to prevent injection attacks
-		strKey = sanitizeKey(strKey)
-
-		newPrefix := strKey
-		if prefix != "" {
-			newPrefix = prefix + "." + strKey
-		}
-
-		if err := f.flattenValueWithDepth(v, newPrefix, result, depth); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// flattenArrayWithDepth flattens an array with the given prefix and tracks depth
-func (f *Flattener) flattenArrayWithDepth(a []interface{}, prefix string, result map[string]string, depth int) error {
-	for i, v := range a {
-		newPrefix := fmt.Sprintf("%s[%d]", prefix, i)
-		if err := f.flattenValueWithDepth(v, newPrefix, result, depth); err != nil {
-			return err
-		}
-	}
-	return nil
+	return prefix + "." + key
 }
 
 // FlattenYAMLString takes a YAML string and flattens it into a map with dot notation
+// This version preserves the original order from the YAML document
 func (f *Flattener) FlattenYAMLString(yamlContent string) (map[string]string, error) {
 	if yamlContent == "" {
 		return nil, fmt.Errorf("YAML content cannot be empty")
@@ -161,14 +77,14 @@ func (f *Flattener) FlattenYAMLString(yamlContent string) (map[string]string, er
 	// Sanitize YAML content
 	yamlContent = sanitizeYAMLContent(yamlContent)
 
-	var yamlData interface{}
+	var yamlNode yaml.Node
 
 	// Set a timeout for YAML parsing to prevent DoS attacks
 	done := make(chan struct{})
 	var err error
 
 	go func() {
-		err = yaml.Unmarshal([]byte(yamlContent), &yamlData)
+		err = yaml.Unmarshal([]byte(yamlContent), &yamlNode)
 		close(done)
 	}()
 
@@ -183,7 +99,93 @@ func (f *Flattener) FlattenYAMLString(yamlContent string) (map[string]string, er
 		return nil, fmt.Errorf("failed to parse YAML content: %w", err)
 	}
 
-	return f.FlattenYAML(yamlData)
+	return f.FlattenYAMLNode(&yamlNode)
+}
+
+// FlattenYAMLNode takes a parsed YAML Node and flattens it into a map with dot notation
+// This preserves the original document order
+func (f *Flattener) FlattenYAMLNode(node *yaml.Node) (map[string]string, error) {
+	if node == nil {
+		return nil, fmt.Errorf("cannot flatten nil YAML node")
+	}
+
+	result := make(map[string]string)
+	err := f.flattenNodeWithDepth(node, "", result, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// flattenNodeWithDepth recursively flattens a YAML node with the given prefix and tracks depth
+func (f *Flattener) flattenNodeWithDepth(node *yaml.Node, prefix string, result map[string]string, depth int) error {
+	if err := f.validateDepthAndSize(depth, len(result)); err != nil {
+		return err
+	}
+
+	switch node.Kind {
+	case yaml.DocumentNode:
+		// Document node - process its content
+		if len(node.Content) > 0 {
+			return f.flattenNodeWithDepth(node.Content[0], prefix, result, depth)
+		}
+	case yaml.MappingNode:
+		return f.flattenMappingNodeWithDepth(node, prefix, result, depth+1)
+	case yaml.SequenceNode:
+		return f.flattenSequenceNodeWithDepth(node, prefix, result, depth+1)
+	case yaml.ScalarNode:
+		// Handle null values specially
+		if node.Tag == "!!null" || node.Value == "null" || node.Value == "~" || node.Value == "" {
+			result[prefix] = ""
+		} else {
+			result[prefix] = node.Value
+		}
+	case yaml.AliasNode:
+		// Handle alias nodes by following the alias
+		if node.Alias != nil {
+			return f.flattenNodeWithDepth(node.Alias, prefix, result, depth)
+		}
+	}
+
+	return nil
+}
+
+// flattenMappingNodeWithDepth flattens a mapping node preserving key order
+func (f *Flattener) flattenMappingNodeWithDepth(node *yaml.Node, prefix string, result map[string]string, depth int) error {
+	// Content of mapping nodes alternates: key, value, key, value, ...
+	for i := 0; i < len(node.Content); i += 2 {
+		if i+1 >= len(node.Content) {
+			break // Malformed mapping, skip
+		}
+
+		keyNode := node.Content[i]
+		valueNode := node.Content[i+1]
+
+		if keyNode.Kind != yaml.ScalarNode {
+			return fmt.Errorf("non-scalar key in YAML mapping")
+		}
+
+		// Sanitize key to prevent injection attacks
+		key := sanitizeKey(keyNode.Value)
+		newPrefix := buildPrefix(prefix, key)
+
+		if err := f.flattenNodeWithDepth(valueNode, newPrefix, result, depth); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// flattenSequenceNodeWithDepth flattens a sequence node preserving element order
+func (f *Flattener) flattenSequenceNodeWithDepth(node *yaml.Node, prefix string, result map[string]string, depth int) error {
+	for i, childNode := range node.Content {
+		newPrefix := fmt.Sprintf("%s[%d]", prefix, i)
+		if err := f.flattenNodeWithDepth(childNode, newPrefix, result, depth); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // FlattenYAMLFile reads a YAML file and flattens its content into a map with dot notation

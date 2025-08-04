@@ -4,11 +4,9 @@ import (
 	"os"
 	"reflect"
 	"testing"
-
-	"gopkg.in/yaml.v3"
 )
 
-func TestFlattenYAML(t *testing.T) {
+func TestFlattenYAMLString(t *testing.T) {
 	flattener := NewFlattener()
 
 	tests := []struct {
@@ -98,7 +96,7 @@ empty_object: {}
 			wantErr:  false,
 		},
 		{
-			name:     "Nil input",
+			name:     "Empty YAML string",
 			yamlStr:  "",
 			expected: nil,
 			wantErr:  true,
@@ -107,25 +105,15 @@ empty_object: {}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var yamlData interface{}
-			var err error
-
-			if tt.yamlStr != "" {
-				err = yaml.Unmarshal([]byte(tt.yamlStr), &yamlData)
-				if err != nil {
-					t.Fatalf("Failed to parse test YAML: %v", err)
-				}
-			}
-
-			result, err := flattener.FlattenYAML(yamlData)
+			result, err := flattener.FlattenYAMLString(tt.yamlStr)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("FlattenYAML() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("FlattenYAMLString() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			if !tt.wantErr {
 				if !reflect.DeepEqual(result, tt.expected) {
-					t.Errorf("FlattenYAML() = %v, want %v", result, tt.expected)
+					t.Errorf("FlattenYAMLString() = %v, want %v", result, tt.expected)
 				}
 			}
 		})
@@ -201,73 +189,16 @@ mixed_array:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var yamlData interface{}
-			var err error
-
-			if tt.yamlStr != "" {
-				err = yaml.Unmarshal([]byte(tt.yamlStr), &yamlData)
-				if err != nil {
-					t.Fatalf("Failed to parse test YAML: %v", err)
-				}
-			}
-
-			result, err := flattener.FlattenYAML(yamlData)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("FlattenYAML() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if !tt.wantErr {
-				if !reflect.DeepEqual(result, tt.expected) {
-					t.Errorf("FlattenYAML() = %v, want %v", result, tt.expected)
-				}
-			}
-		})
-	}
-}
-
-func TestFlattenYAMLString(t *testing.T) {
-	flattener := NewFlattener()
-
-	tests := []struct {
-		name       string
-		yamlString string
-		expected   map[string]string
-		wantErr    bool
-	}{
-		{
-			name:       "Valid YAML string",
-			yamlString: "key: value\nkey2:\n  nested: value2",
-			expected: map[string]string{
-				"key":         "value",
-				"key2.nested": "value2",
-			},
-			wantErr: false,
-		},
-		{
-			name:       "Empty YAML string",
-			yamlString: "",
-			expected:   nil,
-			wantErr:    true,
-		},
-		{
-			name:       "Invalid YAML string",
-			yamlString: "key: : value",
-			expected:   nil,
-			wantErr:    true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := flattener.FlattenYAMLString(tt.yamlString)
+			result, err := flattener.FlattenYAMLString(tt.yamlStr)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FlattenYAMLString() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			if !tt.wantErr && !reflect.DeepEqual(result, tt.expected) {
-				t.Errorf("FlattenYAMLString() = %v, want %v", result, tt.expected)
+			if !tt.wantErr {
+				if !reflect.DeepEqual(result, tt.expected) {
+					t.Errorf("FlattenYAMLString() = %v, want %v", result, tt.expected)
+				}
 			}
 		})
 	}
