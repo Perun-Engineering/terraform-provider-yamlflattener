@@ -102,15 +102,15 @@ jobs:
       - name: Build provider for testing
         run: |
           go build -o terraform-provider-yamlflattener
-          mkdir -p ~/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.2.0/linux_amd64/
-          cp terraform-provider-yamlflattener ~/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.2.0/linux_amd64/
+          mkdir -p ~/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.1.0/linux_amd64/
+          cp terraform-provider-yamlflattener ~/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.1.0/linux_amd64/
 
       - name: Create terraform dev override config
         run: |
           cat > ~/.terraformrc << EOF
           provider_installation {
             dev_overrides {
-              "perun-engineering/yamlflattener" = "$HOME/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.2.0/linux_amd64/"
+              "perun-engineering/yamlflattener" = "$HOME/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.1.0/linux_amd64/"
             }
             direct {}
           }
@@ -120,7 +120,7 @@ jobs:
         run: |
           cd examples/complete-example
           # Remove version constraint for local testing with dev overrides
-          sed -i 's/version = ">= 0.2.0"/# version = ">= 0.2.0"/' main.tf
+          sed -i 's/version = ">= 0.1.0"/# version = ">= 0.1.0"/' main.tf
           # Skip terraform init as recommended when using dev overrides
           # terraform init
           terraform validate
