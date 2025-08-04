@@ -27,7 +27,8 @@ type YAMLFlattenerProvider struct {
 // YAMLFlattenerProviderModel describes the provider data model.
 type YAMLFlattenerProviderModel struct {
 	// Optional configuration fields can be added here if needed in the future
-	MaxDepth types.Int64 `tfsdk:"max_depth"`
+	MaxDepth       types.Int64 `tfsdk:"max_depth"`
+	EscapeNewlines types.Bool  `tfsdk:"escape_newlines"`
 }
 
 // Metadata returns the provider metadata including type name and version.
@@ -47,6 +48,10 @@ func (p *YAMLFlattenerProvider) Schema(_ context.Context, _ provider.SchemaReque
 				Description: "Maximum recursion depth for flattening (default: 100). Set to prevent stack overflow with deeply nested structures.",
 				Optional:    true,
 			},
+			"escape_newlines": schema.BoolAttribute{
+				Description: "When true, newlines in multi-line values are escaped as \\n for compatibility with tools that parse values as key-value pairs (default: false).",
+				Optional:    true,
+			},
 		},
 		Blocks: map[string]schema.Block{},
 	}
@@ -62,8 +67,9 @@ func (p *YAMLFlattenerProvider) Configure(ctx context.Context, req provider.Conf
 		return
 	}
 
-	// Configuration can be passed to data sources and functions if needed
-	// For now, we don't need to pass any configuration
+	// Pass configuration to data sources and functions
+	resp.DataSourceData = &data
+	resp.ResourceData = &data
 }
 
 // Resources returns the list of resources supported by this provider.

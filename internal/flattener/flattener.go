@@ -29,6 +29,7 @@ type Flattener struct {
 	MaxNestingDepth int
 	MaxResultSize   int
 	MaxYAMLSize     int
+	EscapeNewlines  bool
 }
 
 // NewFlattener creates a new instance of Flattener with default settings
@@ -37,7 +38,15 @@ func NewFlattener() *Flattener {
 		MaxNestingDepth: MaxNestingDepth,
 		MaxResultSize:   MaxResultSize,
 		MaxYAMLSize:     MaxYAMLSize,
+		EscapeNewlines:  false,
 	}
+}
+
+// NewFlattenerWithOptions creates a new instance of Flattener with custom options
+func NewFlattenerWithOptions(escapeNewlines bool) *Flattener {
+	f := NewFlattener()
+	f.EscapeNewlines = escapeNewlines
+	return f
 }
 
 // FlattenYAML takes a parsed YAML structure and flattens it into a map with dot notation
@@ -75,7 +84,11 @@ func (f *Flattener) flattenValueWithDepth(value interface{}, prefix string, resu
 	case []interface{}:
 		return f.flattenArrayWithDepth(v, prefix, result, depth+1)
 	case string:
-		result[prefix] = v
+		if f.EscapeNewlines {
+			result[prefix] = strings.ReplaceAll(v, "\n", "\\n")
+		} else {
+			result[prefix] = v
+		}
 	case int:
 		result[prefix] = strconv.Itoa(v)
 	case int64:

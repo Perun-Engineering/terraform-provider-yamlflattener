@@ -37,6 +37,10 @@ func (f *flattenFunction) Definition(_ context.Context, _ function.DefinitionReq
 				Name:        "yaml_content",
 				Description: "The YAML content to flatten as a string",
 			},
+			function.BoolParameter{
+				Name:        "escape_newlines",
+				Description: "When true, newlines in multi-line values are escaped as \\n for compatibility with tools that parse values as key-value pairs (default: false)",
+			},
 		},
 		Return: function.MapReturn{
 			ElementType: types.StringType,
@@ -47,9 +51,10 @@ func (f *flattenFunction) Definition(_ context.Context, _ function.DefinitionReq
 // Run executes the function logic
 func (f *flattenFunction) Run(ctx context.Context, req function.RunRequest, resp *function.RunResponse) {
 	var yamlContent string
+	var escapeNewlines bool
 
-	// Get the YAML content parameter
-	resp.Error = function.ConcatFuncErrors(resp.Error, req.Arguments.Get(ctx, &yamlContent))
+	// Get the YAML content parameter and escape_newlines parameter
+	resp.Error = function.ConcatFuncErrors(resp.Error, req.Arguments.Get(ctx, &yamlContent, &escapeNewlines))
 	if resp.Error != nil {
 		return
 	}
@@ -79,7 +84,7 @@ func (f *flattenFunction) Run(ctx context.Context, req function.RunRequest, resp
 	yamlContent = strings.ReplaceAll(yamlContent, "\x00", "") // Remove null bytes
 
 	// Create flattener instance with performance and security limits
-	flattenerInstance := flattener.NewFlattener()
+	flattenerInstance := flattener.NewFlattenerWithOptions(escapeNewlines)
 	// Configure flattener with appropriate limits
 	flattenerInstance.MaxYAMLSize = maxYAMLSize // 10MB limit
 	flattenerInstance.MaxNestingDepth = 100     // Prevent stack overflow

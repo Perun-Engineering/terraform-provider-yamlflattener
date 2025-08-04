@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -30,12 +31,16 @@ func TestFlattenFunction_Definition(t *testing.T) {
 
 	f.Definition(context.Background(), req, resp)
 
-	if len(resp.Definition.Parameters) != 1 {
-		t.Errorf("Expected 1 parameter, got %d", len(resp.Definition.Parameters))
+	if len(resp.Definition.Parameters) != 2 {
+		t.Errorf("Expected 2 parameters, got %d", len(resp.Definition.Parameters))
 	}
 
 	if resp.Definition.Parameters[0].GetName() != "yaml_content" {
 		t.Errorf("Expected parameter name 'yaml_content', got %s", resp.Definition.Parameters[0].GetName())
+	}
+
+	if resp.Definition.Parameters[1].GetName() != "escape_newlines" {
+		t.Errorf("Expected parameter name 'escape_newlines', got %s", resp.Definition.Parameters[1].GetName())
 	}
 }
 
@@ -51,6 +56,7 @@ key2:
 	req := function.RunRequest{
 		Arguments: function.NewArgumentsData([]attr.Value{
 			types.StringValue(yamlContent),
+			types.BoolValue(false), // escape_newlines = false
 		}),
 	}
 	resp := &function.RunResponse{}
@@ -106,6 +112,7 @@ items:
 	req := function.RunRequest{
 		Arguments: function.NewArgumentsData([]attr.Value{
 			types.StringValue(yamlContent),
+			types.BoolValue(false), // escape_newlines = false
 		}),
 	}
 	resp := &function.RunResponse{}
@@ -178,6 +185,7 @@ key2: [
 	req := function.RunRequest{
 		Arguments: function.NewArgumentsData([]attr.Value{
 			types.StringValue(yamlContent),
+			types.BoolValue(false), // escape_newlines = false
 		}),
 	}
 	resp := &function.RunResponse{}
@@ -207,6 +215,7 @@ alertmanager:
 	req := function.RunRequest{
 		Arguments: function.NewArgumentsData([]attr.Value{
 			types.StringValue(yamlContent),
+			types.BoolValue(false), // escape_newlines = false
 		}),
 	}
 	resp := &function.RunResponse{}
@@ -259,6 +268,7 @@ null_val: null
 	req := function.RunRequest{
 		Arguments: function.NewArgumentsData([]attr.Value{
 			types.StringValue(yamlContent),
+			types.BoolValue(false), // escape_newlines = false
 		}),
 	}
 	resp := &function.RunResponse{}
@@ -307,6 +317,7 @@ func TestFlattenFunction_Run_EmptyYAML(t *testing.T) {
 	req := function.RunRequest{
 		Arguments: function.NewArgumentsData([]attr.Value{
 			types.StringValue(yamlContent),
+			types.BoolValue(false), // escape_newlines = false
 		}),
 	}
 	resp := &function.RunResponse{}
@@ -346,6 +357,7 @@ matrix:
 	req := function.RunRequest{
 		Arguments: function.NewArgumentsData([]attr.Value{
 			types.StringValue(yamlContent),
+			types.BoolValue(false), // escape_newlines = false
 		}),
 	}
 	resp := &function.RunResponse{}
@@ -393,6 +405,7 @@ func TestFlattenFunction_Run_WhitespaceOnly(t *testing.T) {
 	req := function.RunRequest{
 		Arguments: function.NewArgumentsData([]attr.Value{
 			types.StringValue(yamlContent),
+			types.BoolValue(false), // escape_newlines = false
 		}),
 	}
 	resp := &function.RunResponse{}
@@ -401,5 +414,62 @@ func TestFlattenFunction_Run_WhitespaceOnly(t *testing.T) {
 
 	if resp.Error == nil {
 		t.Error("Expected error for whitespace-only YAML content, got nil")
+	}
+}
+
+func TestFlattenFunction_Run_EscapeNewlines(t *testing.T) {
+	f := NewFlattenFunction()
+
+	yamlContent := `
+alertmanager:
+  config:
+    receivers:
+      - name: discord_prometheus
+        webhook_configs:
+          - url: https://example.com/webhook
+            body: |
+              {
+                "content": "**{{ .Status | title }}**: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+              }
+`
+
+	// Test with escape_newlines = true
+	req := function.RunRequest{
+		Arguments: function.NewArgumentsData([]attr.Value{
+			types.StringValue(yamlContent),
+			types.BoolValue(true), // escape_newlines = true
+		}),
+	}
+	resp := &function.RunResponse{}
+
+	f.Run(context.Background(), req, resp)
+
+	if resp.Error != nil {
+		t.Fatalf("Unexpected error: %v", resp.Error)
+	}
+
+	// Get the result directly as a Map value
+	resultValue := resp.Result.Value()
+	result, ok := resultValue.(types.Map)
+	if !ok {
+		t.Fatalf("Expected result to be types.Map, got %T", resultValue)
+	}
+
+	// Check that the body contains escaped newlines
+	bodyKey := "alertmanager.config.receivers[0].webhook_configs[0].body"
+	bodyValue, exists := result.Elements()[bodyKey]
+	if !exists {
+		t.Fatalf("Expected key '%s' not found in result", bodyKey)
+	}
+
+	bodyString := bodyValue.(types.String).ValueString()
+	if !strings.Contains(bodyString, "\\n") {
+		t.Errorf("Expected body to contain escaped newlines (\\n), got: %s", bodyString)
+	}
+
+	// Verify newlines are escaped
+	expectedContent := "{\\n  \"content\": \"**{{ .Status | title }}**: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}\"\\n}"
+	if bodyString != expectedContent {
+		t.Errorf("Expected body content '%s', got '%s'", expectedContent, bodyString)
 	}
 }
