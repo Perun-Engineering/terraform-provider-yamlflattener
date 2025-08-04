@@ -36,7 +36,7 @@ func main() {
 	flag.Parse()
 
 	opts := providerserver.ServeOpts{
-		Address: "registry.terraform.io/terraform/yamlflattener",
+		Address: "registry.terraform.io/perun-engineering/yamlflattener",
 		Debug:   debug,
 	}
 

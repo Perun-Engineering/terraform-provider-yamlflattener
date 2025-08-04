@@ -254,8 +254,8 @@ func TestFinalIntegration_ProviderInstallationWorkflow(t *testing.T) {
 terraform {
   required_providers {
     yamlflattener = {
-      source = "registry.terraform.io/terraform/yamlflattener"
-      version = ">= 0.1.0"
+      source = "perun-engineering/yamlflattener"
+      version = ">= 0.2.0"
     }
   }
 }
@@ -271,7 +271,7 @@ data "yamlflattener_flatten" "test" {
 installation:
   test: "success"
   provider: "yamlflattener"
-  version: "0.1.0"
+  version: "0.2.0"
 EOT
 }
 
@@ -281,7 +281,7 @@ output "function_test" {
 function:
   test: "success"
   provider: "yamlflattener"
-  version: "0.1.0"
+  version: "0.2.0"
 EOT
 )
 }
@@ -321,7 +321,7 @@ data "yamlflattener_flatten" "installation_test" {
 installation:
   test: "success"
   provider: "yamlflattener"
-  version: "0.1.0"
+  version: "0.2.0"
 EOT
 }
 
@@ -352,7 +352,7 @@ output "function_test" {
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckOutput("installation_test", "success"),
 					resource.TestCheckOutput("provider_name", "yamlflattener"),
-					resource.TestCheckOutput("provider_version", "0.1.0"),
+					resource.TestCheckOutput("provider_version", "0.2.0"),
 					resource.TestCheckOutput("function_test", "success"),
 				),
 			},

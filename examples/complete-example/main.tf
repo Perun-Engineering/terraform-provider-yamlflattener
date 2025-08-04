@@ -2,8 +2,8 @@ terraform {
   required_version = ">= 1.0"
   required_providers {
     yamlflattener = {
-      source  = "registry.terraform.io/terraform/yamlflattener"
-      version = ">= 0.1.0"
+      source  = "perun-engineering/yamlflattener"
+      version = ">= 0.2.0"
     }
   }
 }
@@ -13,8 +13,8 @@ provider "yamlflattener" {
 }
 
 # Example 1: Using data source with inline YAML content
-data "yamlflattener_flatten" "app_config" {
-  yaml_content = <<EOT
+locals {
+  app_config_yaml = <<EOT
 application:
   name: "example-app"
   version: "1.0.0"
@@ -61,6 +61,10 @@ monitoring:
 EOT
 }
 
+data "yamlflattener_flatten" "app_config" {
+  yaml_content = local.app_config_yaml
+}
+
 # Example 2: Using data source with external YAML file
 data "yamlflattener_flatten" "external_config" {
   yaml_file = "${path.module}/config.yaml"
@@ -91,7 +95,7 @@ features:
     beta_features: true
 EOT
 
-  # flattened_features = provider::yamlflattener::flatten(local.feature_flags)
+  flattened_features = provider::yamlflattener::flatten(local.feature_flags)
 
 }
 
@@ -176,8 +180,8 @@ output "equivalence_test" {
   description = "Test that data source and function produce identical results"
   value = {
     datasource_result = data.yamlflattener_flatten.app_config.flattened["application.name"]
-    # function_result   = provider::yamlflattener::flatten(data.yamlflattener_flatten.app_config.yaml_content)["application.name"]
-    # are_equal        = data.yamlflattener_flatten.app_config.flattened["application.name"] == provider::yamlflattener::flatten(data.yamlflattener_flatten.app_config.yaml_content)["application.name"]
+    function_result   = provider::yamlflattener::flatten(local.app_config_yaml)["application.name"]
+    are_equal        = data.yamlflattener_flatten.app_config.flattened["application.name"] == provider::yamlflattener::flatten(local.app_config_yaml)["application.name"]
   }
 }
 
