@@ -110,7 +110,7 @@ jobs:
           cat > ~/.terraformrc << EOF
           provider_installation {
             dev_overrides {
-              "Perun-Engineering/yamlflattener" = "$HOME/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.2.0/linux_amd64/"
+              "perun-engineering/yamlflattener" = "$HOME/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.2.0/linux_amd64/"
             }
             direct {}
           }

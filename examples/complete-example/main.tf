@@ -2,7 +2,7 @@ terraform {
   required_version = ">= 1.0"
   required_providers {
     yamlflattener = {
-      source  = "Perun-Engineering/yamlflattener"
+      source  = "perun-engineering/yamlflattener"
       version = ">= 0.2.0"
     }
   }
