@@ -3,7 +3,7 @@ terraform {
   required_providers {
     yamlflattener = {
       source  = "registry.terraform.io/terraform/yamlflattener"
-      version = ">= 0.1.0"
+      version = ">= 0.2.0"
     }
   }
 }
