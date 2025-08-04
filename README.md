@@ -56,7 +56,25 @@ output "flattened_config" {
 
 ```hcl
 locals {
-  flattened = provider::yamlflattener::flatten(file("config.yaml"))
+  # Get ordered list of key-value pairs
+  flattened_pairs = provider::yamlflattener::flatten(file("config.yaml"))
+
+  # Convert to map when needed (loses order)
+  flattened_map = { for pair in local.flattened_pairs : pair[0] => pair[1] }
+}
+
+# Use with Helm - preserves order!
+resource "helm_release" "app" {
+  name  = "my-app"
+  chart = "my-chart"
+
+  dynamic "set_sensitive" {
+    for_each = local.flattened_pairs
+    content {
+      name  = set_sensitive.value[0]  # key
+      value = set_sensitive.value[1]  # value
+    }
+  }
 }
 ```
 

@@ -30,16 +30,18 @@ func (f *flattenFunction) Metadata(_ context.Context, _ function.MetadataRequest
 // Definition defines the function signature, parameters, and return type
 func (f *flattenFunction) Definition(_ context.Context, _ function.DefinitionRequest, resp *function.DefinitionResponse) {
 	resp.Definition = function.Definition{
-		Summary:     "Flatten nested YAML content into a map with dot notation",
-		Description: "Takes YAML content as input and returns a flattened map where nested objects use dot notation (e.g., 'parent.child') and arrays use bracket notation (e.g., 'parent.array[0]').",
+		Summary:     "Flatten nested YAML content into an ordered list of key-value pairs",
+		Description: "Takes YAML content as input and returns a flattened list of key-value pairs where nested objects use dot notation (e.g., 'parent.child') and arrays use bracket notation (e.g., 'parent.array[0]'). The order matches the original YAML structure.",
 		Parameters: []function.Parameter{
 			function.StringParameter{
 				Name:        "yaml_content",
 				Description: "The YAML content to flatten as a string",
 			},
 		},
-		Return: function.MapReturn{
-			ElementType: types.StringType,
+		Return: function.ListReturn{
+			ElementType: types.TupleType{
+				ElemTypes: []attr.Type{types.StringType, types.StringType},
+			},
 		},
 	}
 }
@@ -91,19 +93,35 @@ func (f *flattenFunction) Run(ctx context.Context, req function.RunRequest, resp
 		return
 	}
 
-	// Convert OrderedMap to types.Map using ordered iteration to preserve key order
-	elements := make(map[string]attr.Value, orderedResult.Len())
-	for _, key := range orderedResult.Keys() { // Iterate in insertion order!
+	// Convert OrderedMap to types.ListValue with ordered key-value tuples
+	listElements := make([]attr.Value, 0, orderedResult.Len())
+	for _, key := range orderedResult.Keys() {
 		value, _ := orderedResult.Get(key)
-		elements[key] = types.StringValue(value)
+
+		// Create a tuple for each key-value pair
+		tupleElements := []attr.Value{
+			types.StringValue(key),
+			types.StringValue(value),
+		}
+
+		tupleValue, diags := types.TupleValue([]attr.Type{types.StringType, types.StringType}, tupleElements)
+		if diags.HasError() {
+			resp.Error = function.ConcatFuncErrors(resp.Error, function.NewFuncError("Failed to create key-value tuple: "+diags[0].Detail()))
+			return
+		}
+
+		listElements = append(listElements, tupleValue)
 	}
 
-	resultMap, diags := types.MapValue(types.StringType, elements)
+	resultList, diags := types.ListValue(
+		types.TupleType{ElemTypes: []attr.Type{types.StringType, types.StringType}},
+		listElements,
+	)
 	if diags.HasError() {
-		resp.Error = function.ConcatFuncErrors(resp.Error, function.NewFuncError("Failed to create result map: "+diags[0].Detail()))
+		resp.Error = function.ConcatFuncErrors(resp.Error, function.NewFuncError("Failed to create result list: "+diags[0].Detail()))
 		return
 	}
 
 	// Set the result
-	resp.Result = function.NewResultData(resultMap)
+	resp.Result = function.NewResultData(resultList)
 }

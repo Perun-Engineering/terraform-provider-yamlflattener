@@ -91,8 +91,11 @@ features:
     beta_features: true
 EOT
 
-  flattened_features = provider::yamlflattener::flatten(local.feature_flags)
+  # Get ordered list of key-value pairs
+  flattened_pairs = provider::yamlflattener::flatten(local.feature_flags)
 
+  # Convert to map when needed (loses order)
+  flattened_map = { for pair in local.flattened_pairs : pair[0] => pair[1] }
 }
 
 # Outputs demonstrating various use cases
@@ -154,30 +157,36 @@ output "redis_endpoints" {
 # Feature flags using provider function
 output "authentication_enabled" {
   description = "Authentication feature flag"
-  value       = local.flattened_features["features.authentication.enabled"]
+  value       = local.flattened_map["features.authentication.enabled"]
 }
 
 output "oauth_client_id" {
   description = "OAuth client ID from feature flags"
-  value       = local.flattened_features["features.authentication.providers[0].config.client_id"]
+  value       = local.flattened_map["features.authentication.providers[0].config.client_id"]
 }
 
 output "api_rate_limit" {
   description = "API rate limit configuration"
   value = {
-    rate_limit     = local.flattened_features["features.api_limits.rate_limit"]
-    burst_limit    = local.flattened_features["features.api_limits.burst_limit"]
-    per_user_limit = local.flattened_features["features.api_limits.per_user_limit"]
+    rate_limit     = local.flattened_map["features.api_limits.rate_limit"]
+    burst_limit    = local.flattened_map["features.api_limits.burst_limit"]
+    per_user_limit = local.flattened_map["features.api_limits.per_user_limit"]
   }
 }
 
 # Demonstrate equivalence between data source and function
+locals {
+  # Convert app_config_yaml using function for comparison
+  app_config_pairs = provider::yamlflattener::flatten(local.app_config_yaml)
+  app_config_map = { for pair in local.app_config_pairs : pair[0] => pair[1] }
+}
+
 output "equivalence_test" {
   description = "Test that data source and function produce identical results"
   value = {
     datasource_result = data.yamlflattener_flatten.app_config.flattened["application.name"]
-    function_result   = provider::yamlflattener::flatten(local.app_config_yaml)["application.name"]
-    are_equal        = data.yamlflattener_flatten.app_config.flattened["application.name"] == provider::yamlflattener::flatten(local.app_config_yaml)["application.name"]
+    function_result   = local.app_config_map["application.name"]
+    are_equal        = data.yamlflattener_flatten.app_config.flattened["application.name"] == local.app_config_map["application.name"]
   }
 }
 

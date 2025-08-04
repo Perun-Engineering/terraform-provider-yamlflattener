@@ -9,6 +9,31 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
+// Helper function to convert list of tuples to map for easier testing
+func listToMap(listValue types.List) map[string]string {
+	result := make(map[string]string)
+	for _, elem := range listValue.Elements() {
+		tupleElem := elem.(types.Tuple)
+		tupleElems := tupleElem.Elements()
+		key := tupleElems[0].(types.String).ValueString()
+		value := tupleElems[1].(types.String).ValueString()
+		result[key] = value
+	}
+	return result
+}
+
+// Helper function to get ordered keys from list of tuples
+func getOrderedKeys(listValue types.List) []string {
+	keys := make([]string, 0, len(listValue.Elements()))
+	for _, elem := range listValue.Elements() {
+		tupleElem := elem.(types.Tuple)
+		tupleElems := tupleElem.Elements()
+		key := tupleElems[0].(types.String).ValueString()
+		keys = append(keys, key)
+	}
+	return keys
+}
+
 func TestFlattenFunction_Metadata(t *testing.T) {
 	f := NewFlattenFunction()
 
@@ -61,14 +86,15 @@ key2:
 		t.Fatalf("Unexpected error: %v", resp.Error)
 	}
 
-	// Get the result directly as a Map value
+	// Get the result directly as a List value
 	resultValue := resp.Result.Value()
-	result, ok := resultValue.(types.Map)
+	result, ok := resultValue.(types.List)
 	if !ok {
-		t.Fatalf("Expected result to be types.Map, got %T", resultValue)
+		t.Fatalf("Expected result to be types.List, got %T", resultValue)
 	}
 
-	elements := result.Elements()
+	// Convert to map for easier testing
+	elements := listToMap(result)
 
 	// Check expected keys
 	expectedKeys := map[string]string{
@@ -81,13 +107,21 @@ key2:
 	}
 
 	for expectedKey, expectedValue := range expectedKeys {
-		if element, exists := elements[expectedKey]; exists {
-			actualValue := element.(types.String).ValueString()
+		if actualValue, exists := elements[expectedKey]; exists {
 			if actualValue != expectedValue {
 				t.Errorf("Expected %s=%s, got %s=%s", expectedKey, expectedValue, expectedKey, actualValue)
 			}
 		} else {
 			t.Errorf("Expected key %s not found in result", expectedKey)
+		}
+	}
+
+	// Test order preservation
+	orderedKeys := getOrderedKeys(result)
+	expectedOrder := []string{"key1", "key2.nested"}
+	for i, expectedKey := range expectedOrder {
+		if i >= len(orderedKeys) || orderedKeys[i] != expectedKey {
+			t.Errorf("Expected key at position %d to be %s, got %s", i, expectedKey, orderedKeys[i])
 		}
 	}
 }
@@ -118,12 +152,12 @@ items:
 
 	// Get the result directly as a Map value
 	resultValue := resp.Result.Value()
-	result, ok := resultValue.(types.Map)
+	result, ok := resultValue.(types.List)
 	if !ok {
-		t.Fatalf("Expected result to be types.Map, got %T", resultValue)
+		t.Fatalf("Expected result to be types.List, got %T", resultValue)
 	}
 
-	elements := result.Elements()
+	elements := listToMap(result)
 
 	// Check expected keys
 	expectedKeys := map[string]string{
@@ -138,8 +172,8 @@ items:
 	}
 
 	for expectedKey, expectedValue := range expectedKeys {
-		if element, exists := elements[expectedKey]; exists {
-			actualValue := element.(types.String).ValueString()
+		if actualValue, exists := elements[expectedKey]; exists {
+			actualValue := actualValue
 			if actualValue != expectedValue {
 				t.Errorf("Expected %s=%s, got %s=%s", expectedKey, expectedValue, expectedKey, actualValue)
 			}
@@ -219,12 +253,12 @@ alertmanager:
 
 	// Get the result directly as a Map value
 	resultValue := resp.Result.Value()
-	result, ok := resultValue.(types.Map)
+	result, ok := resultValue.(types.List)
 	if !ok {
-		t.Fatalf("Expected result to be types.Map, got %T", resultValue)
+		t.Fatalf("Expected result to be types.List, got %T", resultValue)
 	}
 
-	elements := result.Elements()
+	elements := listToMap(result)
 
 	// Check some expected keys
 	expectedKeys := map[string]string{
@@ -234,8 +268,8 @@ alertmanager:
 	}
 
 	for expectedKey, expectedValue := range expectedKeys {
-		if element, exists := elements[expectedKey]; exists {
-			actualValue := element.(types.String).ValueString()
+		if actualValue, exists := elements[expectedKey]; exists {
+			actualValue := actualValue
 			if actualValue != expectedValue {
 				t.Errorf("Expected %s=%s, got %s=%s", expectedKey, expectedValue, expectedKey, actualValue)
 			}
@@ -271,12 +305,12 @@ null_val: null
 
 	// Get the result directly as a Map value
 	resultValue := resp.Result.Value()
-	result, ok := resultValue.(types.Map)
+	result, ok := resultValue.(types.List)
 	if !ok {
-		t.Fatalf("Expected result to be types.Map, got %T", resultValue)
+		t.Fatalf("Expected result to be types.List, got %T", resultValue)
 	}
 
-	elements := result.Elements()
+	elements := listToMap(result)
 
 	// Check expected keys and their string representations
 	expectedKeys := map[string]string{
@@ -288,8 +322,8 @@ null_val: null
 	}
 
 	for expectedKey, expectedValue := range expectedKeys {
-		if element, exists := elements[expectedKey]; exists {
-			actualValue := element.(types.String).ValueString()
+		if actualValue, exists := elements[expectedKey]; exists {
+			actualValue := actualValue
 			if actualValue != expectedValue {
 				t.Errorf("Expected %s=%s, got %s=%s", expectedKey, expectedValue, expectedKey, actualValue)
 			}
@@ -319,12 +353,12 @@ func TestFlattenFunction_Run_EmptyYAML(t *testing.T) {
 
 	// Get the result directly as a Map value
 	resultValue := resp.Result.Value()
-	result, ok := resultValue.(types.Map)
+	result, ok := resultValue.(types.List)
 	if !ok {
-		t.Fatalf("Expected result to be types.Map, got %T", resultValue)
+		t.Fatalf("Expected result to be types.List, got %T", resultValue)
 	}
 
-	elements := result.Elements()
+	elements := listToMap(result)
 
 	// Empty YAML should result in empty map
 	if len(elements) != 0 {
@@ -358,12 +392,12 @@ matrix:
 
 	// Get the result directly as a Map value
 	resultValue := resp.Result.Value()
-	result, ok := resultValue.(types.Map)
+	result, ok := resultValue.(types.List)
 	if !ok {
-		t.Fatalf("Expected result to be types.Map, got %T", resultValue)
+		t.Fatalf("Expected result to be types.List, got %T", resultValue)
 	}
 
-	elements := result.Elements()
+	elements := listToMap(result)
 
 	// Check expected keys for nested arrays
 	expectedKeys := map[string]string{
@@ -374,8 +408,8 @@ matrix:
 	}
 
 	for expectedKey, expectedValue := range expectedKeys {
-		if element, exists := elements[expectedKey]; exists {
-			actualValue := element.(types.String).ValueString()
+		if actualValue, exists := elements[expectedKey]; exists {
+			actualValue := actualValue
 			if actualValue != expectedValue {
 				t.Errorf("Expected %s=%s, got %s=%s", expectedKey, expectedValue, expectedKey, actualValue)
 			}
