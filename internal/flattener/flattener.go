@@ -109,18 +109,18 @@ func (f *Flattener) FlattenYAMLNode(node *yaml.Node) (map[string]string, error) 
 		return nil, fmt.Errorf("cannot flatten nil YAML node")
 	}
 
-	result := make(map[string]string)
-	err := f.flattenNodeWithDepth(node, "", result, 0)
+	orderedResult := NewOrderedMap()
+	err := f.flattenNodeWithDepthOrdered(node, "", orderedResult, 0)
 	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	return orderedResult.ToMap(), nil
 }
 
-// flattenNodeWithDepth recursively flattens a YAML node with the given prefix and tracks depth
-func (f *Flattener) flattenNodeWithDepth(node *yaml.Node, prefix string, result map[string]string, depth int) error {
-	if err := f.validateDepthAndSize(depth, len(result)); err != nil {
+// flattenNodeWithDepthOrdered recursively flattens a YAML node with the given prefix and tracks depth using ordered map
+func (f *Flattener) flattenNodeWithDepthOrdered(node *yaml.Node, prefix string, result *OrderedMap, depth int) error {
+	if err := f.validateDepthAndSize(depth, result.Len()); err != nil {
 		return err
 	}
 
@@ -128,37 +128,33 @@ func (f *Flattener) flattenNodeWithDepth(node *yaml.Node, prefix string, result 
 	case yaml.DocumentNode:
 		// Document node - process its content
 		if len(node.Content) > 0 {
-			return f.flattenNodeWithDepth(node.Content[0], prefix, result, depth)
+			return f.flattenNodeWithDepthOrdered(node.Content[0], prefix, result, depth)
 		}
 	case yaml.MappingNode:
-		return f.flattenMappingNodeWithDepth(node, prefix, result, depth+1)
+		return f.flattenMappingNodeWithDepthOrdered(node, prefix, result, depth+1)
 	case yaml.SequenceNode:
-		return f.flattenSequenceNodeWithDepth(node, prefix, result, depth+1)
+		return f.flattenSequenceNodeWithDepthOrdered(node, prefix, result, depth+1)
 	case yaml.ScalarNode:
 		// Handle null values specially
 		if node.Tag == "!!null" || node.Value == "null" || node.Value == "~" || node.Value == "" {
-			result[prefix] = ""
+			result.Set(prefix, "")
 		} else {
-			result[prefix] = node.Value
+			result.Set(prefix, node.Value)
 		}
 	case yaml.AliasNode:
 		// Handle alias nodes by following the alias
 		if node.Alias != nil {
-			return f.flattenNodeWithDepth(node.Alias, prefix, result, depth)
+			return f.flattenNodeWithDepthOrdered(node.Alias, prefix, result, depth)
 		}
 	}
 
 	return nil
 }
 
-// flattenMappingNodeWithDepth flattens a mapping node preserving key order
-func (f *Flattener) flattenMappingNodeWithDepth(node *yaml.Node, prefix string, result map[string]string, depth int) error {
-	// Content of mapping nodes alternates: key, value, key, value, ...
+// flattenMappingNodeWithDepthOrdered flattens a mapping node preserving key order
+func (f *Flattener) flattenMappingNodeWithDepthOrdered(node *yaml.Node, prefix string, result *OrderedMap, depth int) error {
+	// Process key-value pairs in order
 	for i := 0; i < len(node.Content); i += 2 {
-		if i+1 >= len(node.Content) {
-			break // Malformed mapping, skip
-		}
-
 		keyNode := node.Content[i]
 		valueNode := node.Content[i+1]
 
@@ -170,18 +166,18 @@ func (f *Flattener) flattenMappingNodeWithDepth(node *yaml.Node, prefix string, 
 		key := sanitizeKey(keyNode.Value)
 		newPrefix := buildPrefix(prefix, key)
 
-		if err := f.flattenNodeWithDepth(valueNode, newPrefix, result, depth); err != nil {
+		if err := f.flattenNodeWithDepthOrdered(valueNode, newPrefix, result, depth); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// flattenSequenceNodeWithDepth flattens a sequence node preserving element order
-func (f *Flattener) flattenSequenceNodeWithDepth(node *yaml.Node, prefix string, result map[string]string, depth int) error {
+// flattenSequenceNodeWithDepthOrdered flattens a sequence node preserving element order
+func (f *Flattener) flattenSequenceNodeWithDepthOrdered(node *yaml.Node, prefix string, result *OrderedMap, depth int) error {
 	for i, childNode := range node.Content {
 		newPrefix := fmt.Sprintf("%s[%d]", prefix, i)
-		if err := f.flattenNodeWithDepth(childNode, newPrefix, result, depth); err != nil {
+		if err := f.flattenNodeWithDepthOrdered(childNode, newPrefix, result, depth); err != nil {
 			return err
 		}
 	}
