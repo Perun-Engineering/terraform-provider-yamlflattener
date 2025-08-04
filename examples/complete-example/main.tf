@@ -93,9 +93,9 @@ features:
 EOT
 
   # Example of using provider function with escape_newlines parameter
-  # flattened_features = provider::yamlflattener::flatten(local.feature_flags, false)
+  flattened_features = provider::yamlflattener::flatten(local.feature_flags, false)
   # For multi-line YAML compatibility with Helm set_sensitive:
-  # flattened_features_escaped = provider::yamlflattener::flatten(local.feature_flags, true)
+  flattened_features_escaped = provider::yamlflattener::flatten(local.feature_flags, true)
 
   # Example 4: Multi-line YAML with escaped newlines for Helm compatibility
   alertmanager_config = <<EOT
@@ -111,7 +111,7 @@ alertmanager:
               }
 EOT
 
-  # flattened_alertmanager = provider::yamlflattener::flatten(local.alertmanager_config, true)
+  flattened_alertmanager = provider::yamlflattener::flatten(local.alertmanager_config, true)
 
 }
 
