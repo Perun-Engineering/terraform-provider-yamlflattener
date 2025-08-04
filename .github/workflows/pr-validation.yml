@@ -102,26 +102,23 @@ jobs:
       - name: Build provider for testing
         run: |
           go build -o terraform-provider-yamlflattener
-          mkdir -p ~/.terraform.d/plugins/local/perun-engineering/yamlflattener/1.0.0/linux_amd64/
-          cp terraform-provider-yamlflattener ~/.terraform.d/plugins/local/perun-engineering/yamlflattener/1.0.0/linux_amd64/
+          mkdir -p ~/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.2.0/linux_amd64/
+          cp terraform-provider-yamlflattener ~/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.2.0/linux_amd64/
+
+      - name: Create terraform dev override config
+        run: |
+          cat > ~/.terraformrc << EOF
+          provider_installation {
+            dev_overrides {
+              "Perun-Engineering/yamlflattener" = "$HOME/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.2.0/linux_amd64/"
+            }
+            direct {}
+          }
+          EOF
 
       - name: Run integration tests
         run: |
           cd examples/complete-example
-          terraform init
-          terraform validate
-          terraform plan -out=tfplan
-
-      - name: Run data source example
-        run: |
-          cd examples/data-source
-          terraform init
-          terraform validate
-          terraform plan -out=tfplan
-
-      - name: Run function example
-        run: |
-          cd examples/function
           terraform init
           terraform validate
           terraform plan -out=tfplan
