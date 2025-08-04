@@ -254,7 +254,7 @@ func TestFinalIntegration_ProviderInstallationWorkflow(t *testing.T) {
 terraform {
   required_providers {
     yamlflattener = {
-      source = "registry.terraform.io/terraform/yamlflattener"
+      source = "perun-engineering/yamlflattener"
       version = ">= 0.2.0"
     }
   }
