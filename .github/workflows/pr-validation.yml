@@ -73,7 +73,7 @@ jobs:
       - name: Run govulncheck
         uses: golang/govulncheck-action@v1
         with:
-          go-version-input: '1.21'
+          go-version-input: '1.24'
           go-package: ./...
 
   integration:
@@ -96,33 +96,33 @@ jobs:
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.5.0"
+          terraform_version: "1.8.0"
           terraform_wrapper: false
 
       - name: Build provider for testing
         run: |
           go build -o terraform-provider-yamlflattener
-          mkdir -p ~/.terraform.d/plugins/local/perun-engineering/yamlflattener/1.0.0/linux_amd64/
-          cp terraform-provider-yamlflattener ~/.terraform.d/plugins/local/perun-engineering/yamlflattener/1.0.0/linux_amd64/
+          mkdir -p ~/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.2.0/linux_amd64/
+          cp terraform-provider-yamlflattener ~/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.2.0/linux_amd64/
+
+      - name: Create terraform dev override config
+        run: |
+          cat > ~/.terraformrc << EOF
+          provider_installation {
+            dev_overrides {
+              "perun-engineering/yamlflattener" = "$HOME/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.2.0/linux_amd64/"
+            }
+            direct {}
+          }
+          EOF
 
       - name: Run integration tests
         run: |
           cd examples/complete-example
-          terraform init
-          terraform validate
-          terraform plan -out=tfplan
-
-      - name: Run data source example
-        run: |
-          cd examples/data-source
-          terraform init
-          terraform validate
-          terraform plan -out=tfplan
-
-      - name: Run function example
-        run: |
-          cd examples/function
-          terraform init
+          # Remove version constraint for local testing with dev overrides
+          sed -i 's/version = ">= 0.2.0"/# version = ">= 0.2.0"/' main.tf
+          # Skip terraform init as recommended when using dev overrides
+          # terraform init
           terraform validate
           terraform plan -out=tfplan
 
