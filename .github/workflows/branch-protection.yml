@@ -9,6 +9,10 @@ on:
       - 'docs/**'
       - 'examples/**'
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   validate:
     name: Validate Branch Protection
@@ -22,26 +26,26 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          types:
-            - feat
-            - fix
-            - docs
-            - style
-            - refactor
-            - perf
-            - test
-            - build
-            - ci
-            - chore
-            - revert
+          types: |
+            feat
+            fix
+            docs
+            style
+            refactor
+            perf
+            test
+            build
+            ci
+            chore
+            revert
           requireScope: false
 
       - name: Check branch name
         run: |
           BRANCH_NAME=${GITHUB_HEAD_REF}
-          if [[ ! $BRANCH_NAME =~ ^(feature|bugfix|hotfix|release|docs|refactor|test|ci|chore)/[a-z0-9-]+$ ]]; then
+          if [[ ! $BRANCH_NAME =~ ^(feature|bugfix|hotfix|release|docs|refactor|test|ci|chore)/[a-z0-9_-]+$ ]]; then
             echo "Branch name '$BRANCH_NAME' does not follow the naming convention."
-            echo "Branch names should follow the pattern: feature/my-feature-name"
+            echo "Branch names should follow the pattern: type/branch-name (e.g., feature/my-feature-name, chore/fix_workflows)"
             exit 1
           fi
           echo "Branch name '$BRANCH_NAME' is valid."
