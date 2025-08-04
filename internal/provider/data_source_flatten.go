@@ -19,7 +19,8 @@ var _ datasource.DataSourceWithConfigure = &flattenDataSource{}
 
 // flattenDataSource defines the data source implementation.
 type flattenDataSource struct {
-	// No provider configuration needed for this data source
+	// Provider configuration
+	providerData *YAMLFlattenerProviderModel
 }
 
 // flattenDataSourceModel describes the data source data model.
@@ -67,8 +68,22 @@ func (d *flattenDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 }
 
 // Configure adds the provider configured client to the data source.
-func (d *flattenDataSource) Configure(_ context.Context, _ datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
-	// No configuration needed for this data source
+func (d *flattenDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	// Prevent panic if the provider has not been configured.
+	if req.ProviderData == nil {
+		return
+	}
+
+	providerData, ok := req.ProviderData.(*YAMLFlattenerProviderModel)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Data Source Configure Type",
+			fmt.Sprintf("Expected *YAMLFlattenerProviderModel, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+		return
+	}
+
+	d.providerData = providerData
 }
 
 // Read refreshes the Terraform state with the latest data.
@@ -99,11 +114,21 @@ func (d *flattenDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	}
 
 	// Create flattener instance with performance and security limits
-	flattenerInstance := flattener.NewFlattener()
+	escapeNewlines := false
+	if d.providerData != nil && !d.providerData.EscapeNewlines.IsNull() {
+		escapeNewlines = d.providerData.EscapeNewlines.ValueBool()
+	}
+
+	flattenerInstance := flattener.NewFlattenerWithOptions(escapeNewlines)
 	// Configure flattener with appropriate limits
 	flattenerInstance.MaxYAMLSize = 10 * 1024 * 1024 // 10MB limit
 	flattenerInstance.MaxNestingDepth = 100          // Prevent stack overflow
 	flattenerInstance.MaxResultSize = 100000         // Limit result size
+
+	// Apply provider configuration
+	if d.providerData != nil && !d.providerData.MaxDepth.IsNull() {
+		flattenerInstance.MaxNestingDepth = int(d.providerData.MaxDepth.ValueInt64())
+	}
 
 	var flattenedMap map[string]string
 	var err error

@@ -2,14 +2,15 @@ terraform {
   required_version = ">= 1.0"
   required_providers {
     yamlflattener = {
-      source  = "registry.terraform.io/terraform/yamlflattener"
-      version = ">= 0.1.0"
+      source  = "perun-engineering/yamlflattener"
+      version = ">= 0.2.0"
     }
   }
 }
 
 provider "yamlflattener" {
-  max_depth = 100
+  max_depth       = 100
+  escape_newlines = false  # Set to true for multi-line YAML compatibility with Helm set_sensitive
 }
 
 # Example 1: Using data source with inline YAML content
@@ -91,7 +92,26 @@ features:
     beta_features: true
 EOT
 
-  # flattened_features = provider::yamlflattener::flatten(local.feature_flags)
+  # Example of using provider function with escape_newlines parameter
+  flattened_features = provider::yamlflattener::flatten(local.feature_flags, false)
+  # For multi-line YAML compatibility with Helm set_sensitive:
+  flattened_features_escaped = provider::yamlflattener::flatten(local.feature_flags, true)
+
+  # Example 4: Multi-line YAML with escaped newlines for Helm compatibility
+  alertmanager_config = <<EOT
+alertmanager:
+  config:
+    receivers:
+      - name: discord_prometheus
+        webhook_configs:
+          - url: https://example.com/webhook
+            body: |
+              {
+                "content": "**{{ .Status | title }}**: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+              }
+EOT
+
+  flattened_alertmanager = provider::yamlflattener::flatten(local.alertmanager_config, true)
 
 }
 

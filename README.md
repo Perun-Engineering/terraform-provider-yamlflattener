@@ -15,7 +15,7 @@ terraform {
   required_providers {
     yamlflattener = {
       source  = "Perun-Engineering/yamlflattener"
-      version = "~> 0.1"
+      version = "~> 0.2"
     }
   }
 }
@@ -46,7 +46,77 @@ output "flattened_config" {
 
 ```hcl
 locals {
-  flattened = provider::yamlflattener::flatten(file("config.yaml"))
+  # Basic usage
+  flattened = provider::yamlflattener::flatten(file("config.yaml"), false)
+
+  # With newline escaping for Helm compatibility
+  flattened_escaped = provider::yamlflattener::flatten(file("config.yaml"), true)
+}
+```
+
+### Provider Configuration
+
+```hcl
+provider "yamlflattener" {
+  max_depth       = 100   # Optional: Maximum nesting depth (default: 100)
+  escape_newlines = false # Optional: Escape newlines in multi-line values (default: false)
+}
+```
+
+### Multi-line YAML Support
+
+For multi-line YAML values (like JSON blocks in Alertmanager configurations), you can enable newline escaping to make them compatible with tools that parse values as key-value pairs:
+
+```hcl
+# Provider configuration approach
+provider "yamlflattener" {
+  escape_newlines = true
+}
+
+data "yamlflattener_flatten" "alertmanager" {
+  yaml_content = <<EOT
+alertmanager:
+  config:
+    receivers:
+      - name: discord
+        webhook_configs:
+          - body: |
+              {
+                "content": "Alert: {{ .Status }}"
+              }
+EOT
+}
+
+# Function approach
+locals {
+  alertmanager_config = <<EOT
+alertmanager:
+  config:
+    receivers:
+      - name: discord
+        webhook_configs:
+          - body: |
+              {
+                "content": "Alert: {{ .Status }}"
+              }
+EOT
+
+  # escape_newlines = true
+  flattened = provider::yamlflattener::flatten(local.alertmanager_config, true)
+}
+```
+
+**With `escape_newlines = true`:**
+```json
+{
+  "alertmanager.config.receivers[0].webhook_configs[0].body": "{\\n  \"content\": \"Alert: {{ .Status }}\"\\n}"
+}
+```
+
+**With `escape_newlines = false`:**
+```json
+{
+  "alertmanager.config.receivers[0].webhook_configs[0].body": "{\n  \"content\": \"Alert: {{ .Status }}\"\n}"
 }
 ```
 

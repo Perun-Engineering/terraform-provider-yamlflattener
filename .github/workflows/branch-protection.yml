@@ -9,6 +9,10 @@ on:
       - 'docs/**'
       - 'examples/**'
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   validate:
     name: Validate Branch Protection

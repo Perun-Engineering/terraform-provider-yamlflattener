@@ -98,6 +98,27 @@ empty_object: {}
 			wantErr:  false,
 		},
 		{
+			name: "Multi-line literal block scalar with |",
+			yamlStr: `
+alertmanager:
+  config:
+    receivers:
+      - name: discord_prometheus
+        webhook_configs:
+          - url: https://example.com/webhook
+            body: |
+              {
+                "content": "**{{ .Status | title }}**: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+              }
+`,
+			expected: map[string]string{
+				"alertmanager.config.receivers[0].name":                    "discord_prometheus",
+				"alertmanager.config.receivers[0].webhook_configs[0].url":  "https://example.com/webhook",
+				"alertmanager.config.receivers[0].webhook_configs[0].body": "{\n  \"content\": \"**{{ .Status | title }}**: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}\"\n}\n",
+			},
+			wantErr: false,
+		},
+		{
 			name:     "Nil input",
 			yamlStr:  "",
 			expected: nil,
@@ -117,6 +138,60 @@ empty_object: {}
 				}
 			}
 
+			result, err := flattener.FlattenYAML(yamlData)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("FlattenYAML() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr {
+				if !reflect.DeepEqual(result, tt.expected) {
+					t.Errorf("FlattenYAML() = %v, want %v", result, tt.expected)
+				}
+			}
+		})
+	}
+}
+
+func TestFlattenYAMLWithEscapeNewlines(t *testing.T) {
+	tests := []struct {
+		name     string
+		yamlStr  string
+		expected map[string]string
+		wantErr  bool
+	}{
+		{
+			name: "Multi-line literal block scalar with escaped newlines",
+			yamlStr: `
+alertmanager:
+  config:
+    receivers:
+      - name: discord_prometheus
+        webhook_configs:
+          - url: https://example.com/webhook
+            body: |
+              {
+                "content": "**{{ .Status | title }}**: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+              }
+`,
+			expected: map[string]string{
+				"alertmanager.config.receivers[0].name":                    "discord_prometheus",
+				"alertmanager.config.receivers[0].webhook_configs[0].url":  "https://example.com/webhook",
+				"alertmanager.config.receivers[0].webhook_configs[0].body": "{\\n  \"content\": \"**{{ .Status | title }}**: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}\"\\n}\\n",
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var yamlData interface{}
+			err := yaml.Unmarshal([]byte(tt.yamlStr), &yamlData)
+			if err != nil {
+				t.Fatalf("Failed to parse test YAML: %v", err)
+			}
+
+			flattener := NewFlattenerWithOptions(true) // Enable escape newlines
 			result, err := flattener.FlattenYAML(yamlData)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FlattenYAML() error = %v, wantErr %v", err, tt.wantErr)

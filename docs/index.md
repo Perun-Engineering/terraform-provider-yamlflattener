@@ -21,7 +21,7 @@ terraform {
   required_providers {
     yamlflattener = {
       source  = "Perun-Engineering/yamlflattener"
-      version = "~> 0.1"
+      version = "~> 0.2"
     }
   }
 }
@@ -55,4 +55,54 @@ resource "helm_release" "app" {
 
 ## Schema
 
-This provider does not require any configuration.
+### Optional
+
+- `max_depth` (Number) Maximum recursion depth for flattening (default: 100). Set to prevent stack overflow with deeply nested structures.
+- `escape_newlines` (Boolean) When true, newlines in multi-line values are escaped as `\n` for compatibility with tools that parse values as key-value pairs (default: false).
+
+## Configuration Examples
+
+### Basic Configuration
+
+```terraform
+provider "yamlflattener" {
+  max_depth = 50
+}
+```
+
+### Multi-line YAML Support
+
+```terraform
+provider "yamlflattener" {
+  escape_newlines = true
+}
+
+data "yamlflattener_flatten" "alertmanager" {
+  yaml_content = <<EOF
+alertmanager:
+  config:
+    receivers:
+      - name: discord
+        webhook_configs:
+          - body: |
+              {
+                "content": "Alert: {{ .Status }}"
+              }
+EOF
+}
+
+# The body field will have escaped newlines: "{\n  \"content\": \"Alert: {{ .Status }}\"\n}"
+# This is compatible with Helm's set_sensitive blocks
+resource "helm_release" "alertmanager" {
+  name  = "alertmanager"
+  chart = "alertmanager"
+
+  dynamic "set_sensitive" {
+    for_each = data.yamlflattener_flatten.alertmanager.flattened
+    content {
+      name  = set_sensitive.key
+      value = set_sensitive.value
+    }
+  }
+}
+```
