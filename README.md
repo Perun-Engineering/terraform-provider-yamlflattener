@@ -10,6 +10,8 @@ This provider solves that problem by converting complex YAML structures into fla
 
 ## Installation
 
+Add the provider to your Terraform configuration:
+
 ```hcl
 terraform {
   required_providers {
