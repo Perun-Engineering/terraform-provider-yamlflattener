@@ -23,7 +23,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.23'
           cache: false
 
 
@@ -32,7 +32,9 @@ jobs:
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck -json ./... > govulncheck-report.json
-          echo "vuln_issues=$(jq 'length' govulncheck-report.json)" >> $GITHUB_OUTPUT
+          # Count vulnerability findings (not all JSON lines)
+          vuln_count=$(grep '"finding"' govulncheck-report.json | wc -l)
+          echo "vuln_issues=$vuln_count" >> $GITHUB_OUTPUT
 
       - name: Upload Go vulnerability report
         uses: actions/upload-artifact@v4
@@ -62,15 +64,18 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.23'
           cache: false
 
       - name: Check for outdated dependencies
         id: outdated
         run: |
           go install github.com/psampaz/go-mod-outdated@latest
-          go list -u -m -json all | go-mod-outdated -update -direct -ci > outdated-deps.txt
-          echo "outdated_deps=$(cat outdated-deps.txt | grep -c '\[OUTDATED\]')" >> $GITHUB_OUTPUT
+          # Use a more robust approach to check for outdated dependencies
+          go list -u -m -json all | go-mod-outdated -update -direct -ci > outdated-deps.txt || true
+          # Count outdated dependencies by counting table rows (excluding header and separator)
+          outdated_count=$(grep -E "^\|.*\|.*\|.*\|.*\|.*\|$" outdated-deps.txt | grep -v "MODULE" | grep -v "^|--" | wc -l || echo "0")
+          echo "outdated_deps=$outdated_count" >> $GITHUB_OUTPUT
 
       - name: Upload outdated dependencies report
         uses: actions/upload-artifact@v4
