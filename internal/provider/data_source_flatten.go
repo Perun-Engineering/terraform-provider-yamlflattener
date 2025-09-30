@@ -99,7 +99,7 @@ func (d *flattenDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	}
 
 	// Create flattener instance with performance and security limits
-	flattenerInstance := flattener.NewFlattener()
+	flattenerInstance := flattener.Default()
 	// Configure flattener with appropriate limits
 	flattenerInstance.MaxYAMLSize = 10 * 1024 * 1024 // 10MB limit
 	flattenerInstance.MaxNestingDepth = 100          // Prevent stack overflow

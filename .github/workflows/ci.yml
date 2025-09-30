@@ -1,0 +1,245 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'examples/**'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Run unit tests with coverage
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Generate coverage report
+        run: |
+          go tool cover -func=coverage.out
+          go tool cover -html=coverage.out -o coverage.html
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.out
+            coverage.html
+          retention-days: 14
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+            echo "::warning::Coverage is below 70% (current: ${COVERAGE}%)"
+          fi
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          args: --timeout=5m
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-input: '1.24'
+          go-package: ./...
+
+  build:
+    name: Build
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          EXT=""
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            EXT=".exe"
+          fi
+
+          mkdir -p dist
+          go build -trimpath -o dist/terraform-provider-yamlflattener${EXT} \
+            -ldflags "-s -w -X main.version=dev -X main.commit=${{ github.sha }}" \
+            -v .
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-provider-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/
+          retention-days: 7
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.8.0"
+          terraform_wrapper: false
+
+      - name: Build provider for testing
+        run: |
+          go build -o terraform-provider-yamlflattener
+          mkdir -p ~/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.1.0/linux_amd64/
+          cp terraform-provider-yamlflattener ~/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.1.0/linux_amd64/
+
+      - name: Create terraform dev override config
+        run: |
+          cat > ~/.terraformrc << EOF
+          provider_installation {
+            dev_overrides {
+              "perun-engineering/yamlflattener" = "$HOME/.terraform.d/plugins/local/perun-engineering/yamlflattener/0.1.0/linux_amd64/"
+            }
+            direct {}
+          }
+          EOF
+
+      - name: Run integration tests
+        run: |
+          cd examples/complete-example
+          sed -i 's/version = ">= 0.1.0"/# version = ">= 0.1.0"/' main.tf
+          terraform validate
+          terraform plan -out=tfplan
+
+  summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [test, lint, security, build]
+    if: always()
+    steps:
+      - name: Generate CI summary
+        run: |
+          echo "# CI Results" > $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.test.result }}" == "success" ]; then
+            echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Tests failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Lint Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.lint.result }}" == "success" ]; then
+            echo "✅ Linting passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Linting failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Security Scan" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.security.result }}" == "success" ]; then
+            echo "✅ No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Security issues detected" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Build Results" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.build.result }}" == "success" ]; then
+            echo "✅ All builds completed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Build failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "## Overall Status" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.test.result }}" == "success" ] && [ "${{ needs.lint.result }}" == "success" ] && [ "${{ needs.security.result }}" == "success" ] && [ "${{ needs.build.result }}" == "success" ]; then
+            echo "✅ **All checks passed**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **One or more checks failed**" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
