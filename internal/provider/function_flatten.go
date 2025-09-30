@@ -79,7 +79,7 @@ func (f *flattenFunction) Run(ctx context.Context, req function.RunRequest, resp
 	yamlContent = strings.ReplaceAll(yamlContent, "\x00", "") // Remove null bytes
 
 	// Create flattener instance with performance and security limits
-	flattenerInstance := flattener.NewFlattener()
+	flattenerInstance := flattener.Default()
 	// Configure flattener with appropriate limits
 	flattenerInstance.MaxYAMLSize = maxYAMLSize // 10MB limit
 	flattenerInstance.MaxNestingDepth = 100     // Prevent stack overflow

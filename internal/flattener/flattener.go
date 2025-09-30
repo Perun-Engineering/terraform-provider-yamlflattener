@@ -31,8 +31,8 @@ type Flattener struct {
 	MaxYAMLSize     int
 }
 
-// NewFlattener creates a new instance of Flattener with default settings
-func NewFlattener() *Flattener {
+// Default creates a Flattener instance with default settings
+func Default() *Flattener {
 	return &Flattener{
 		MaxNestingDepth: MaxNestingDepth,
 		MaxResultSize:   MaxResultSize,
@@ -240,9 +240,18 @@ func validateFilePath(filePath string) (string, error) {
 
 // sanitizeKey sanitizes a map key to prevent injection attacks
 func sanitizeKey(key string) string {
-	// Remove potentially dangerous characters from keys
-	// This is a simple implementation - in production you might want more sophisticated sanitization
-	key = strings.ReplaceAll(key, "\x00", "") // Remove null bytes
+	// Remove null bytes and other control characters
+	key = strings.Map(func(r rune) rune {
+		// Allow printable ASCII characters, common Unicode characters, and common punctuation
+		// Remove control characters (0x00-0x1F, 0x7F-0x9F)
+		if r < 0x20 || (r >= 0x7F && r <= 0x9F) {
+			return -1 // Remove character
+		}
+		return r
+	}, key)
+
+	// Trim whitespace
+	key = strings.TrimSpace(key)
 
 	// Limit key length to prevent DoS
 	const maxKeyLength = 1000

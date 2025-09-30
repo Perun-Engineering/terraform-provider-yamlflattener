@@ -9,7 +9,7 @@ import (
 
 // TestLargeYAMLPerformance tests the performance of flattening large YAML structures
 func TestLargeYAMLPerformance(t *testing.T) {
-	flattener := NewFlattener()
+	flattener := Default()
 
 	tests := []struct {
 		name      string
@@ -161,7 +161,7 @@ func TestMemoryLimits(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flattener := NewFlattener()
+			flattener := Default()
 			flattener.MaxNestingDepth = tt.maxNestingDepth
 			flattener.MaxResultSize = tt.maxResultSize
 
@@ -210,7 +210,7 @@ func TestSecurityMeasures(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flattener := NewFlattener()
+			flattener := Default()
 
 			var err error
 			if tt.filePath != "" {

@@ -9,7 +9,7 @@ import (
 )
 
 func TestFlattenYAML(t *testing.T) {
-	flattener := NewFlattener()
+	flattener := Default()
 
 	tests := []struct {
 		name     string
@@ -133,7 +133,7 @@ empty_object: {}
 }
 
 func TestFlattenEdgeCases(t *testing.T) {
-	flattener := NewFlattener()
+	flattener := Default()
 
 	tests := []struct {
 		name     string
@@ -227,7 +227,7 @@ mixed_array:
 }
 
 func TestFlattenYAMLString(t *testing.T) {
-	flattener := NewFlattener()
+	flattener := Default()
 
 	tests := []struct {
 		name       string
@@ -274,7 +274,7 @@ func TestFlattenYAMLString(t *testing.T) {
 }
 
 func TestFlattenYAMLFile(t *testing.T) {
-	flattener := NewFlattener()
+	flattener := Default()
 
 	// Create a temporary file for testing
 	tempFile, err := os.CreateTemp("", "yaml-test-*.yaml")
