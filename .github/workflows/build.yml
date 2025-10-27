@@ -115,7 +115,7 @@ jobs:
         continue-on-error: false
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: terraform-provider-yamlflattener-${{ matrix.platform }}
           path: ${{ steps.build.outputs.artifact_path }}
