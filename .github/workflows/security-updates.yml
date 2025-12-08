@@ -107,6 +107,10 @@ jobs:
           git push origin $BRANCH_NAME
 
           # Create PR using GitHub CLI
+          # Note: Using GH_PAT instead of GITHUB_TOKEN because GitHub Actions
+          # is not permitted to create or approve pull requests with the default token.
+          # The GH_PAT secret should be a Personal Access Token or GitHub App token
+          # with 'pull-requests: write' and 'contents: write' permissions.
           gh pr create \
             --title "Security: Update dependencies $(date +%Y-%m-%d)" \
             --body "This PR updates dependencies to fix security vulnerabilities and keep dependencies up to date.\n\nAutomatically created by the Security Updates workflow." \
@@ -114,4 +118,4 @@ jobs:
             --base main \
             --head $BRANCH_NAME
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
