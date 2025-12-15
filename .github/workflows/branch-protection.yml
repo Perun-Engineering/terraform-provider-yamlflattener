@@ -38,6 +38,7 @@ jobs:
             ci
             chore
             revert
+            security
           requireScope: false
 
       - name: Check branch name
