@@ -60,6 +60,8 @@ jobs:
           args: --timeout=5m
           # Fail on security issues
           only-new-issues: false
+        env:
+          GOTOOLCHAIN: auto
 
       - name: Install gosec
         run: go install github.com/securego/gosec/v2/cmd/gosec@latest

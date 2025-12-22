@@ -56,6 +56,8 @@ jobs:
         with:
           version: latest
           args: --timeout=5m --issues-exit-code=1
+        env:
+          GOTOOLCHAIN: auto
 
   security:
     name: Security Scan

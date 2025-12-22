@@ -74,6 +74,8 @@ jobs:
         with:
           version: latest
           args: --timeout=5m
+        env:
+          GOTOOLCHAIN: auto
 
   security:
     name: Security Scan
