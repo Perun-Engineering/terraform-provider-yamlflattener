@@ -39,7 +39,7 @@ jobs:
           go tool cover -html=coverage.out -o coverage.html
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-report
           path: |
@@ -145,7 +145,7 @@ jobs:
             -v .
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: terraform-provider-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/
