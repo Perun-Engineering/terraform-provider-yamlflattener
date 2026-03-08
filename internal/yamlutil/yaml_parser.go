@@ -1,5 +1,5 @@
-// Package utils provides YAML parsing and validation utilities.
-package utils //nolint:revive // internal utility package
+// Package yamlutil provides YAML parsing and validation utilities.
+package yamlutil
 
 import (
 	"fmt"

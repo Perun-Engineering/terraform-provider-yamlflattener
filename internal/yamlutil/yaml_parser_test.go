@@ -1,11 +1,11 @@
-package utils_test
+package yamlutil_test
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 
-	"terraform-provider-yamlflattener/internal/utils"
+	"terraform-provider-yamlflattener/internal/yamlutil"
 )
 
 func TestParseYAML(t *testing.T) {
@@ -45,13 +45,13 @@ array:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := utils.ParseYAML(tt.yamlContent)
+			result, err := yamlutil.ParseYAML(tt.yamlContent)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("utils.ParseYAML() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("yamlutil.ParseYAML() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr && result == nil {
-				t.Errorf("utils.ParseYAML() returned nil result for valid YAML")
+				t.Errorf("yamlutil.ParseYAML() returned nil result for valid YAML")
 			}
 		})
 	}
@@ -87,9 +87,9 @@ func TestValidateYAML(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := utils.ValidateYAML(tt.yamlContent)
+			err := yamlutil.ValidateYAML(tt.yamlContent)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("utils.ValidateYAML() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("yamlutil.ValidateYAML() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -158,13 +158,13 @@ func TestReadYAMLFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := utils.ReadYAMLFile(tt.filePath)
+			got, err := yamlutil.ReadYAMLFile(tt.filePath)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("utils.ReadYAMLFile() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("yamlutil.ReadYAMLFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("utils.ReadYAMLFile() = %v, want %v", got, tt.want)
+				t.Errorf("yamlutil.ReadYAMLFile() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -218,13 +218,13 @@ func TestReadAndParseYAMLFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := utils.ReadAndParseYAMLFile(tt.filePath)
+			result, err := yamlutil.ReadAndParseYAMLFile(tt.filePath)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("utils.ReadAndParseYAMLFile() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("yamlutil.ReadAndParseYAMLFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr && result == nil {
-				t.Errorf("utils.ReadAndParseYAMLFile() returned nil result for valid YAML file")
+				t.Errorf("yamlutil.ReadAndParseYAMLFile() returned nil result for valid YAML file")
 			}
 		})
 	}

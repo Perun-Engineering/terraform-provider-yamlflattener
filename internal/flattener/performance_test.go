@@ -22,7 +22,7 @@ func TestLargeYAMLPerformance(t *testing.T) {
 				var builder strings.Builder
 				builder.WriteString("root:\n")
 				for i := 0; i < 1000; i++ {
-					builder.WriteString(fmt.Sprintf("  key%d: value%d\n", i, i))
+					fmt.Fprintf(&builder, "  key%d: value%d\n", i, i)
 				}
 				return builder.String()
 			},
@@ -35,11 +35,11 @@ func TestLargeYAMLPerformance(t *testing.T) {
 				indent := ""
 				key := "root"
 				for i := 0; i < 50; i++ {
-					builder.WriteString(fmt.Sprintf("%s%s:\n", indent, key))
+					fmt.Fprintf(&builder, "%s%s:\n", indent, key)
 					indent += "  "
 					key = "nested"
 				}
-				builder.WriteString(fmt.Sprintf("%svalue: \"deep value\"\n", indent))
+				fmt.Fprintf(&builder, "%svalue: \"deep value\"\n", indent)
 				return builder.String()
 			},
 			maxTime: 1 * time.Second,
@@ -50,7 +50,7 @@ func TestLargeYAMLPerformance(t *testing.T) {
 				var builder strings.Builder
 				builder.WriteString("items:\n")
 				for i := 0; i < 1000; i++ {
-					builder.WriteString(fmt.Sprintf("  - item%d\n", i))
+					fmt.Fprintf(&builder, "  - item%d\n", i)
 				}
 				return builder.String()
 			},
@@ -62,15 +62,15 @@ func TestLargeYAMLPerformance(t *testing.T) {
 				var builder strings.Builder
 				builder.WriteString("root:\n")
 				for i := 0; i < 500; i++ {
-					builder.WriteString(fmt.Sprintf("  group%d:\n", i))
-					builder.WriteString(fmt.Sprintf("    name: \"Group %d\"\n", i))
+					fmt.Fprintf(&builder, "  group%d:\n", i)
+					fmt.Fprintf(&builder, "    name: \"Group %d\"\n", i)
 					builder.WriteString("    items:\n")
 					for j := 0; j < 5; j++ {
-						builder.WriteString(fmt.Sprintf("      - id: %d\n", j))
-						builder.WriteString(fmt.Sprintf("        name: \"Item %d-%d\"\n", i, j))
+						fmt.Fprintf(&builder, "      - id: %d\n", j)
+						fmt.Fprintf(&builder, "        name: \"Item %d-%d\"\n", i, j)
 						builder.WriteString("        attributes:\n")
-						builder.WriteString(fmt.Sprintf("          attr1: \"value-%d-%d-1\"\n", i, j))
-						builder.WriteString(fmt.Sprintf("          attr2: \"value-%d-%d-2\"\n", i, j))
+						fmt.Fprintf(&builder, "          attr1: \"value-%d-%d-1\"\n", i, j)
+						fmt.Fprintf(&builder, "          attr2: \"value-%d-%d-2\"\n", i, j)
 					}
 				}
 				return builder.String()
@@ -118,11 +118,11 @@ func TestMemoryLimits(t *testing.T) {
 				indent := ""
 				key := "root"
 				for i := 0; i < 150; i++ { // Generate 150 levels of nesting
-					builder.WriteString(fmt.Sprintf("%s%s:\n", indent, key))
+					fmt.Fprintf(&builder, "%s%s:\n", indent, key)
 					indent += "  "
 					key = "nested"
 				}
-				builder.WriteString(fmt.Sprintf("%svalue: \"deep value\"\n", indent))
+				fmt.Fprintf(&builder, "%svalue: \"deep value\"\n", indent)
 				return builder.String()
 			},
 			maxNestingDepth: 100, // Set limit to 100
@@ -135,7 +135,7 @@ func TestMemoryLimits(t *testing.T) {
 				var builder strings.Builder
 				builder.WriteString("root:\n")
 				for i := 0; i < 20000; i++ { // Generate 20000 keys
-					builder.WriteString(fmt.Sprintf("  key%d: value%d\n", i, i))
+					fmt.Fprintf(&builder, "  key%d: value%d\n", i, i)
 				}
 				return builder.String()
 			},
@@ -149,7 +149,7 @@ func TestMemoryLimits(t *testing.T) {
 				var builder strings.Builder
 				builder.WriteString("root:\n")
 				for i := 0; i < 50; i++ {
-					builder.WriteString(fmt.Sprintf("  key%d: value%d\n", i, i))
+					fmt.Fprintf(&builder, "  key%d: value%d\n", i, i)
 				}
 				return builder.String()
 			},
