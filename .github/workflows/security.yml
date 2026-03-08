@@ -53,15 +53,17 @@ jobs:
           go-version: '1.24'
           cache: false
 
+      - name: Tidy modules
+        run: go mod tidy
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.11.2
           args: --timeout=5m
-          # Fail on security issues
           only-new-issues: false
         env:
-          GOTOOLCHAIN: auto
+          GOTOOLCHAIN: local
 
       - name: Install gosec
         run: go install github.com/securego/gosec/v2/cmd/gosec@latest

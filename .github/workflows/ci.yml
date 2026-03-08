@@ -69,13 +69,16 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
+      - name: Tidy modules
+        run: go mod tidy
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.11.2
           args: --timeout=5m
         env:
-          GOTOOLCHAIN: auto
+          GOTOOLCHAIN: local
 
   security:
     name: Security Scan
