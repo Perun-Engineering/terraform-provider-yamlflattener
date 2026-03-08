@@ -1,8 +1,6 @@
 module terraform-provider-yamlflattener
 
-go 1.24.0
-
-toolchain go1.24.9
+go 1.25.8
 
 require (
 	github.com/hashicorp/terraform-plugin-framework v1.18.0
