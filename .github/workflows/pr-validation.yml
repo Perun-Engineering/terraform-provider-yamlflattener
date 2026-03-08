@@ -32,7 +32,7 @@ jobs:
         run: go tool cover -html=coverage.out -o coverage.html
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage.html
@@ -98,7 +98,7 @@ jobs:
         run: go mod download
 
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "1.8.0"
           terraform_wrapper: false
