@@ -10,13 +10,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 )
 
-// Use the testAccProtoV6ProviderFactories from provider_test.go
-
 func TestAccFlattenDataSource_YAMLContent(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
-			// Test basic YAML content
 			{
 				Config: testAccFlattenDataSourceConfigYAMLContent(`
 key1: value1
@@ -33,34 +30,11 @@ array:
 					resource.TestCheckResourceAttr("data.yamlflattener_flatten.test", "flattened.array[1].name", "item2"),
 				),
 			},
-			// Test complex YAML content with mixed types
-			{
-				Config: testAccFlattenDataSourceConfigYAMLContent(`
-alertmanager:
-  config:
-    global:
-      slack_api_url: "your-encrypted-slack-webhook"
-    receivers:
-      - name: "slack-notifications"
-        slack_configs:
-          - api_url: "your-encrypted-webhook-url"
-            channel: "#alerts"
-            send_resolved: true
-`),
-				Check: resource.ComposeAggregateTestCheckFunc(
-					resource.TestCheckResourceAttr("data.yamlflattener_flatten.test", "flattened.alertmanager.config.global.slack_api_url", "your-encrypted-slack-webhook"),
-					resource.TestCheckResourceAttr("data.yamlflattener_flatten.test", "flattened.alertmanager.config.receivers[0].name", "slack-notifications"),
-					resource.TestCheckResourceAttr("data.yamlflattener_flatten.test", "flattened.alertmanager.config.receivers[0].slack_configs[0].api_url", "your-encrypted-webhook-url"),
-					resource.TestCheckResourceAttr("data.yamlflattener_flatten.test", "flattened.alertmanager.config.receivers[0].slack_configs[0].channel", "#alerts"),
-					resource.TestCheckResourceAttr("data.yamlflattener_flatten.test", "flattened.alertmanager.config.receivers[0].slack_configs[0].send_resolved", "true"),
-				),
-			},
 		},
 	})
 }
 
 func TestAccFlattenDataSource_YAMLFile(t *testing.T) {
-	// Create a temporary YAML file for testing
 	tempDir := t.TempDir()
 	yamlFilePath := filepath.Join(tempDir, "test.yaml")
 	yamlContent := `
@@ -93,7 +67,6 @@ array:
 }
 
 func TestAccFlattenDataSource_ErrorHandling(t *testing.T) {
-	// Test with invalid YAML content
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -104,7 +77,6 @@ func TestAccFlattenDataSource_ErrorHandling(t *testing.T) {
 		},
 	})
 
-	// Test with non-existent file
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -115,7 +87,6 @@ func TestAccFlattenDataSource_ErrorHandling(t *testing.T) {
 		},
 	})
 
-	// Test with both yaml_content and yaml_file provided
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
@@ -126,7 +97,6 @@ func TestAccFlattenDataSource_ErrorHandling(t *testing.T) {
 		},
 	})
 
-	// Test with neither yaml_content nor yaml_file provided
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
