@@ -9,7 +9,7 @@ import (
 
 // TestLargeYAMLPerformance tests the performance of flattening large YAML structures
 func TestLargeYAMLPerformance(t *testing.T) {
-	flattener := Default()
+	flattener := New()
 
 	tests := []struct {
 		name      string
@@ -161,9 +161,9 @@ func TestMemoryLimits(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flattener := Default()
-			flattener.maxNestingDepth = tt.maxNestingDepth
-			flattener.maxResultSize = tt.maxResultSize
+			flattener := New()
+			flattener.MaxNestingDepth = tt.maxNestingDepth
+			flattener.MaxResultSize = tt.maxResultSize
 
 			yamlContent := tt.yamlGenerator()
 
@@ -185,39 +185,25 @@ func TestSecurityMeasures(t *testing.T) {
 	tests := []struct {
 		name        string
 		yamlContent string
-		filePath    string
 		shouldError bool
 	}{
 		{
 			name:        "YAML with null bytes",
 			yamlContent: "key: value\x00malicious",
-			filePath:    "",
 			shouldError: false, // Should sanitize, not error
-		},
-		{
-			name:        "Directory traversal attempt",
-			yamlContent: "",
-			filePath:    "../../../etc/passwd",
-			shouldError: true,
 		},
 		{
 			name:        "Extremely large content",
 			yamlContent: strings.Repeat("a: b\n", 11*1024*1024), // 11MB
-			filePath:    "",
 			shouldError: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			flattener := Default()
+			flattener := New()
 
-			var err error
-			if tt.filePath != "" {
-				_, err = flattener.FlattenYAMLFile(tt.filePath)
-			} else {
-				_, err = flattener.FlattenYAMLString(tt.yamlContent)
-			}
+			_, err := flattener.FlattenYAMLString(tt.yamlContent)
 
 			if tt.shouldError && err == nil {
 				t.Errorf("Expected security error, but got none")

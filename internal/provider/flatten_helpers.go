@@ -15,8 +15,6 @@ var errorTitles = map[flattener.ErrorType]string{
 	flattener.ErrTypeDepthLimit: "Nesting Depth Exceeded",
 	flattener.ErrTypeSizeLimit:  "Size Limit Exceeded",
 	flattener.ErrTypeTimeout:    "Operation Timed Out",
-	flattener.ErrTypeFileAccess: "File Access Error",
-	flattener.ErrTypeSecurity:   "Security Error",
 }
 
 // errorTitle returns a human-readable title for a flattener error, or "Flatten Error" for unknown errors.

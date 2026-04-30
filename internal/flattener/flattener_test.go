@@ -1,7 +1,6 @@
 package flattener
 
 import (
-	"os"
 	"reflect"
 	"testing"
 
@@ -9,7 +8,7 @@ import (
 )
 
 func TestFlattenYAML(t *testing.T) {
-	flattener := Default()
+	flattener := New()
 
 	tests := []struct {
 		name     string
@@ -133,7 +132,7 @@ empty_object: {}
 }
 
 func TestFlattenEdgeCases(t *testing.T) {
-	flattener := Default()
+	flattener := New()
 
 	tests := []struct {
 		name     string
@@ -227,7 +226,7 @@ mixed_array:
 }
 
 func TestFlattenYAMLString(t *testing.T) {
-	flattener := Default()
+	flattener := New()
 
 	tests := []struct {
 		name       string
@@ -268,63 +267,6 @@ func TestFlattenYAMLString(t *testing.T) {
 
 			if !tt.wantErr && !reflect.DeepEqual(result, tt.expected) {
 				t.Errorf("FlattenYAMLString() = %v, want %v", result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestFlattenYAMLFile(t *testing.T) {
-	flattener := Default()
-
-	// Create a temporary file for testing
-	tempFile, err := os.CreateTemp("", "yaml-test-*.yaml")
-	if err != nil {
-		t.Fatalf("Failed to create temp file: %v", err)
-	}
-	defer func() { _ = os.Remove(tempFile.Name()) }()
-
-	// Write test YAML content to the file
-	yamlContent := "key: value\nkey2:\n  nested: value2"
-	if _, err := tempFile.Write([]byte(yamlContent)); err != nil {
-		t.Fatalf("Failed to write to temp file: %v", err)
-	}
-	if err := tempFile.Close(); err != nil {
-		t.Fatalf("Failed to close temp file: %v", err)
-	}
-
-	tests := []struct {
-		name     string
-		filePath string
-		expected map[string]string
-		wantErr  bool
-	}{
-		{
-			name:     "Valid YAML file",
-			filePath: tempFile.Name(),
-			expected: map[string]string{
-				"key":         "value",
-				"key2.nested": "value2",
-			},
-			wantErr: false,
-		},
-		{
-			name:     "Non-existent file",
-			filePath: "non-existent-file.yaml",
-			expected: nil,
-			wantErr:  true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := flattener.FlattenYAMLFile(tt.filePath)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("FlattenYAMLFile() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-
-			if !tt.wantErr && !reflect.DeepEqual(result, tt.expected) {
-				t.Errorf("FlattenYAMLFile() = %v, want %v", result, tt.expected)
 			}
 		})
 	}

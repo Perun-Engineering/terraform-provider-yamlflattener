@@ -1,8 +1,6 @@
 package flattener
 
 import (
-	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -18,7 +16,7 @@ func FuzzFlattenYAMLString(f *testing.F) {
 	f.Add("null_value: null")
 	f.Add("multiline: |\n  line1\n  line2")
 
-	flattener := Default()
+	flattener := New()
 
 	f.Fuzz(func(t *testing.T, input string) {
 		// Call the function with fuzzed input
@@ -52,7 +50,7 @@ func FuzzFlattenYAML(f *testing.F) {
 	f.Add("array:\n  - 1\n  - 2\n  - 3")
 	f.Add("mixed:\n  key: value\n  list:\n    - item1\n    - item2")
 
-	flattener := Default()
+	flattener := New()
 
 	f.Fuzz(func(t *testing.T, yamlStr string) {
 		// We need to parse the YAML first
@@ -74,8 +72,8 @@ func FuzzFlattenYAML(f *testing.F) {
 		}
 
 		// Ensure result doesn't exceed maximum size
-		if len(result) > flattener.maxResultSize {
-			t.Fatalf("Result size %d exceeds maxResultSize %d", len(result), flattener.maxResultSize)
+		if len(result) > flattener.MaxResultSize {
+			t.Fatalf("Result size %d exceeds MaxResultSize %d", len(result), flattener.MaxResultSize)
 		}
 	})
 }
@@ -106,39 +104,6 @@ func FuzzSanitizeKey(f *testing.F) {
 		// Ensure result doesn't exceed max length
 		if len(result) > 1000 {
 			t.Errorf("sanitizeKey returned key longer than 1000 characters: %d", len(result))
-		}
-	})
-}
-
-// FuzzValidateFilePath tests the validateFilePath function
-func FuzzValidateFilePath(f *testing.F) {
-	// Seed corpus with various file path patterns
-	f.Add("/tmp/test.yaml")
-	f.Add("relative/path/test.yaml")
-	f.Add("./local/test.yaml")
-	f.Add("../parent/test.yaml")
-	f.Add("/etc/passwd")
-	f.Add("..\\..\\windows\\path")
-	f.Add("/path/with spaces/file.yaml")
-
-	f.Fuzz(func(t *testing.T, filePath string) {
-		result, err := validateFilePath(filePath)
-
-		// If validation passes, ensure result is absolute
-		if err == nil {
-			if !filepath.IsAbs(result) {
-				t.Errorf("validateFilePath returned non-absolute path: %s", result)
-			}
-
-			// Ensure no directory traversal patterns in result
-			if strings.Contains(result, "..") {
-				t.Errorf("validateFilePath returned path with ..: %s", result)
-			}
-		} else {
-			// If validation fails, ensure it's a FlattenerError
-			if _, ok := err.(*Error); !ok {
-				t.Logf("Non-FlattenerError returned: %v", err)
-			}
 		}
 	})
 }

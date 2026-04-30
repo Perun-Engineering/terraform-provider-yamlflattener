@@ -2,6 +2,10 @@ package provider
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -13,7 +17,9 @@ import (
 var _ datasource.DataSource = &flattenDataSource{}
 var _ datasource.DataSourceWithConfigure = &flattenDataSource{}
 
-type flattenDataSource struct{}
+type flattenDataSource struct {
+	flattener *flattener.Flattener
+}
 
 type flattenDataSourceModel struct {
 	YAMLContent types.String `tfsdk:"yaml_content"`
@@ -55,7 +61,13 @@ func (d *flattenDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 	}
 }
 
-func (d *flattenDataSource) Configure(_ context.Context, _ datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
+func (d *flattenDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, _ *datasource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+	if f, ok := req.ProviderData.(*flattener.Flattener); ok {
+		d.flattener = f
+	}
 }
 
 func (d *flattenDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
@@ -76,16 +88,55 @@ func (d *flattenDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		return
 	}
 
-	f := flattener.Default()
-	var flattenedMap map[string]string
-	var err error
-
-	if !data.YAMLContent.IsNull() {
-		flattenedMap, err = f.FlattenYAMLString(data.YAMLContent.ValueString())
-	} else {
-		flattenedMap, err = f.FlattenYAMLFile(data.YAMLFile.ValueString())
+	f := d.flattener
+	if f == nil {
+		f = flattener.New()
 	}
 
+	var yamlContent string
+
+	if !data.YAMLFile.IsNull() {
+		filePath := data.YAMLFile.ValueString()
+		if filePath == "" {
+			resp.Diagnostics.AddError("Invalid Input", "yaml_file path cannot be empty")
+			return
+		}
+
+		cleanPath := filepath.Clean(filePath)
+		if strings.Contains(cleanPath, "..") {
+			resp.Diagnostics.AddError("Security Error", "file path contains invalid directory traversal patterns")
+			return
+		}
+
+		absPath, err := filepath.Abs(cleanPath)
+		if err != nil {
+			resp.Diagnostics.AddError("Invalid Input", fmt.Sprintf("invalid file path: %s", err))
+			return
+		}
+
+		fileInfo, err := os.Stat(absPath)
+		if err != nil {
+			resp.Diagnostics.AddError("File Access Error", fmt.Sprintf("failed to access YAML file: %s", err))
+			return
+		}
+
+		if fileInfo.Size() > int64(f.MaxYAMLSize) {
+			resp.Diagnostics.AddError("Size Limit Exceeded", fmt.Sprintf("YAML file size exceeds maximum of %d bytes", f.MaxYAMLSize))
+			return
+		}
+
+		content, err := os.ReadFile(absPath) // #nosec G304 - absPath is validated
+		if err != nil {
+			resp.Diagnostics.AddError("File Access Error", fmt.Sprintf("failed to read YAML file: %s", err))
+			return
+		}
+
+		yamlContent = string(content)
+	} else {
+		yamlContent = data.YAMLContent.ValueString()
+	}
+
+	flattenedMap, err := f.FlattenYAMLString(yamlContent)
 	if err != nil {
 		resp.Diagnostics.AddError(errorTitle(err), err.Error())
 		return

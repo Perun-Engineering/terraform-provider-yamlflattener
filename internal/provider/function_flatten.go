@@ -11,10 +11,13 @@ import (
 
 var _ function.Function = &flattenFunction{}
 
-type flattenFunction struct{}
+type flattenFunction struct {
+	flattener *flattener.Flattener
+}
 
-func NewFlattenFunction() function.Function {
-	return &flattenFunction{}
+// NewFlattenFunction creates a new flatten function with the given Flattener. Falls back to defaults if nil.
+func NewFlattenFunction(f *flattener.Flattener) function.Function {
+	return &flattenFunction{flattener: f}
 }
 
 func (fn *flattenFunction) Metadata(_ context.Context, _ function.MetadataRequest, resp *function.MetadataResponse) {
@@ -51,7 +54,12 @@ func (fn *flattenFunction) Run(ctx context.Context, req function.RunRequest, res
 		return
 	}
 
-	flattenedMap, err := flattener.Default().FlattenYAMLString(yamlContent)
+	f := fn.flattener
+	if f == nil {
+		f = flattener.New()
+	}
+
+	flattenedMap, err := f.FlattenYAMLString(yamlContent)
 	if err != nil {
 		resp.Error = function.ConcatFuncErrors(resp.Error, function.NewFuncError(errorTitle(err)+": "+err.Error()))
 		return

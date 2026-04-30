@@ -10,7 +10,7 @@ import (
 )
 
 func TestFlattenFunction_Metadata(t *testing.T) {
-	f := NewFlattenFunction()
+	f := NewFlattenFunction(nil)
 
 	req := function.MetadataRequest{}
 	resp := &function.MetadataResponse{}
@@ -23,7 +23,7 @@ func TestFlattenFunction_Metadata(t *testing.T) {
 }
 
 func TestFlattenFunction_Definition(t *testing.T) {
-	f := NewFlattenFunction()
+	f := NewFlattenFunction(nil)
 
 	req := function.DefinitionRequest{}
 	resp := &function.DefinitionResponse{}
@@ -40,7 +40,7 @@ func TestFlattenFunction_Definition(t *testing.T) {
 }
 
 func TestFlattenFunction_Run_SimpleObject(t *testing.T) {
-	f := NewFlattenFunction()
+	f := NewFlattenFunction(nil)
 
 	yamlContent := `
 key1: value1
@@ -93,7 +93,7 @@ key2:
 }
 
 func TestFlattenFunction_Run_WithArray(t *testing.T) {
-	f := NewFlattenFunction()
+	f := NewFlattenFunction(nil)
 
 	yamlContent := `
 items:
@@ -150,7 +150,7 @@ items:
 }
 
 func TestFlattenFunction_Run_EmptyContent(t *testing.T) {
-	f := NewFlattenFunction()
+	f := NewFlattenFunction(nil)
 
 	req := function.RunRequest{
 		Arguments: function.NewArgumentsData([]attr.Value{
@@ -167,7 +167,7 @@ func TestFlattenFunction_Run_EmptyContent(t *testing.T) {
 }
 
 func TestFlattenFunction_Run_InvalidYAML(t *testing.T) {
-	f := NewFlattenFunction()
+	f := NewFlattenFunction(nil)
 
 	yamlContent := `
 key1: value1
@@ -190,7 +190,7 @@ key2: [
 }
 
 func TestFlattenFunction_Run_ComplexExample(t *testing.T) {
-	f := NewFlattenFunction()
+	f := NewFlattenFunction(nil)
 
 	// Using the alertmanager example from requirements
 	yamlContent := `
@@ -246,7 +246,7 @@ alertmanager:
 }
 
 func TestFlattenFunction_Run_DataTypes(t *testing.T) {
-	f := NewFlattenFunction()
+	f := NewFlattenFunction(nil)
 
 	yamlContent := `
 string_val: "hello"
@@ -300,7 +300,7 @@ null_val: null
 }
 
 func TestFlattenFunction_Run_EmptyYAML(t *testing.T) {
-	f := NewFlattenFunction()
+	f := NewFlattenFunction(nil)
 
 	yamlContent := `{}`
 
@@ -333,7 +333,7 @@ func TestFlattenFunction_Run_EmptyYAML(t *testing.T) {
 }
 
 func TestFlattenFunction_Run_NestedArrays(t *testing.T) {
-	f := NewFlattenFunction()
+	f := NewFlattenFunction(nil)
 
 	yamlContent := `
 matrix:
@@ -386,7 +386,7 @@ matrix:
 }
 
 func TestFlattenFunction_Run_WhitespaceOnly(t *testing.T) {
-	f := NewFlattenFunction()
+	f := NewFlattenFunction(nil)
 
 	yamlContent := "   \n   \t   "
 

@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	_ "gopkg.in/yaml.v3" // YAML parser dependency
+	"terraform-provider-yamlflattener/internal/flattener"
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
@@ -21,7 +21,8 @@ type YAMLFlattenerProvider struct {
 	// version is set to the provider version on release, "dev" when the
 	// provider is built and ran locally, and "test" when running acceptance
 	// testing.
-	version string
+	version   string
+	flattener *flattener.Flattener
 }
 
 // YAMLFlattenerProviderModel describes the provider data model.
@@ -62,8 +63,13 @@ func (p *YAMLFlattenerProvider) Configure(ctx context.Context, req provider.Conf
 		return
 	}
 
-	// Configuration can be passed to data sources and functions if needed
-	// For now, we don't need to pass any configuration
+	f := flattener.New()
+	if !data.MaxDepth.IsNull() {
+		f.MaxNestingDepth = int(data.MaxDepth.ValueInt64())
+	}
+
+	p.flattener = f
+	resp.DataSourceData = f
 }
 
 // Resources returns the list of resources supported by this provider.
@@ -83,7 +89,7 @@ func (p *YAMLFlattenerProvider) DataSources(_ context.Context) []func() datasour
 // Functions returns the list of functions supported by this provider.
 func (p *YAMLFlattenerProvider) Functions(_ context.Context) []func() function.Function {
 	return []func() function.Function{
-		NewFlattenFunction,
+		func() function.Function { return NewFlattenFunction(p.flattener) },
 	}
 }
 

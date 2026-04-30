@@ -3,8 +3,6 @@ package flattener
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -25,17 +23,17 @@ const (
 
 // Flattener provides functionality to flatten nested YAML structures
 type Flattener struct {
-	maxNestingDepth int
-	maxResultSize   int
-	maxYAMLSize     int
+	MaxNestingDepth int
+	MaxResultSize   int
+	MaxYAMLSize     int
 }
 
-// Default creates a Flattener instance with default settings
-func Default() *Flattener {
+// New creates a Flattener instance with default settings
+func New() *Flattener {
 	return &Flattener{
-		maxNestingDepth: MaxNestingDepth,
-		maxResultSize:   MaxResultSize,
-		maxYAMLSize:     MaxYAMLSize,
+		MaxNestingDepth: MaxNestingDepth,
+		MaxResultSize:   MaxResultSize,
+		MaxYAMLSize:     MaxYAMLSize,
 	}
 }
 
@@ -55,12 +53,12 @@ func (f *Flattener) FlattenYAML(yamlData interface{}) (map[string]string, error)
 
 // flattenValueWithDepth recursively flattens a YAML value with the given prefix and tracks depth
 func (f *Flattener) flattenValueWithDepth(value interface{}, prefix string, result map[string]string, depth int) error {
-	if depth > f.maxNestingDepth {
-		return DepthLimitError(f.maxNestingDepth)
+	if depth > f.MaxNestingDepth {
+		return DepthLimitError(f.MaxNestingDepth)
 	}
 
-	if len(result) >= f.maxResultSize {
-		return SizeLimitError(f.maxResultSize, "result")
+	if len(result) >= f.MaxResultSize {
+		return SizeLimitError(f.MaxResultSize, "result")
 	}
 
 	switch v := value.(type) {
@@ -140,8 +138,8 @@ func (f *Flattener) FlattenYAMLString(yamlContent string) (map[string]string, er
 		return nil, ValidationError("YAML content cannot be empty", nil)
 	}
 
-	if len(yamlContent) > f.maxYAMLSize {
-		return nil, SizeLimitError(f.maxYAMLSize, "YAML content")
+	if len(yamlContent) > f.MaxYAMLSize {
+		return nil, SizeLimitError(f.MaxYAMLSize, "YAML content")
 	}
 
 	yamlContent = sanitizeYAMLContent(yamlContent)
@@ -167,50 +165,6 @@ func (f *Flattener) FlattenYAMLString(yamlContent string) (map[string]string, er
 	}
 
 	return f.FlattenYAML(yamlData)
-}
-
-// FlattenYAMLFile reads a YAML file and flattens its content into a map with dot notation
-func (f *Flattener) FlattenYAMLFile(filePath string) (map[string]string, error) {
-	cleanPath, err := validateFilePath(filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	fileInfo, err := os.Stat(cleanPath)
-	if err != nil {
-		return nil, FileAccessError("failed to access YAML file", err)
-	}
-
-	if fileInfo.Size() > int64(f.maxYAMLSize) {
-		return nil, SizeLimitError(f.maxYAMLSize, "YAML file")
-	}
-
-	content, err := os.ReadFile(cleanPath) // #nosec G304 - cleanPath is validated
-	if err != nil {
-		return nil, FileAccessError("failed to read YAML file", err)
-	}
-
-	return f.FlattenYAMLString(string(content))
-}
-
-// validateFilePath validates and sanitizes a file path to prevent directory traversal
-func validateFilePath(filePath string) (string, error) {
-	if filePath == "" {
-		return "", ValidationError("file path cannot be empty", nil)
-	}
-
-	cleanPath := filepath.Clean(filePath)
-
-	if strings.Contains(cleanPath, "..") {
-		return "", SecurityError("file path contains invalid directory traversal patterns")
-	}
-
-	absPath, err := filepath.Abs(cleanPath)
-	if err != nil {
-		return "", ValidationError("invalid file path", err)
-	}
-
-	return absPath, nil
 }
 
 // sanitizeKey sanitizes a map key to prevent injection attacks

@@ -19,10 +19,6 @@ const (
 	ErrTypeSizeLimit ErrorType = "size_limit"
 	// ErrTypeTimeout indicates operation timed out
 	ErrTypeTimeout ErrorType = "timeout"
-	// ErrTypeFileAccess indicates file access failures
-	ErrTypeFileAccess ErrorType = "file_access"
-	// ErrTypeSecurity indicates security-related failures
-	ErrTypeSecurity ErrorType = "security"
 )
 
 // Error represents a structured error from the flattener
@@ -95,24 +91,6 @@ func TimeoutError(operation string) *Error {
 	return &Error{
 		Type:    ErrTypeTimeout,
 		Message: fmt.Sprintf("%s timed out, content may be too complex", operation),
-		Err:     nil,
-	}
-}
-
-// FileAccessError creates a file access error
-func FileAccessError(message string, err error) *Error {
-	return &Error{
-		Type:    ErrTypeFileAccess,
-		Message: message,
-		Err:     err,
-	}
-}
-
-// SecurityError creates a security error
-func SecurityError(message string) *Error {
-	return &Error{
-		Type:    ErrTypeSecurity,
-		Message: message,
 		Err:     nil,
 	}
 }
