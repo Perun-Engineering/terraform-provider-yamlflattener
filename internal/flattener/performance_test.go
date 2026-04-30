@@ -162,8 +162,8 @@ func TestMemoryLimits(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			flattener := Default()
-			flattener.MaxNestingDepth = tt.maxNestingDepth
-			flattener.MaxResultSize = tt.maxResultSize
+			flattener.maxNestingDepth = tt.maxNestingDepth
+			flattener.maxResultSize = tt.maxResultSize
 
 			yamlContent := tt.yamlGenerator()
 

@@ -99,7 +99,7 @@ func TestAccFlattenDataSource_ErrorHandling(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccFlattenDataSourceConfigYAMLContent(`invalid: yaml: : content`),
-				ExpectError: regexp.MustCompile(`Failed to Flatten YAML Content`),
+				ExpectError: regexp.MustCompile(`Invalid YAML Syntax`),
 			},
 		},
 	})
@@ -110,7 +110,7 @@ func TestAccFlattenDataSource_ErrorHandling(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccFlattenDataSourceConfigYAMLFile("/path/to/nonexistent/file.yaml"),
-				ExpectError: regexp.MustCompile(`Failed to Flatten YAML File`),
+				ExpectError: regexp.MustCompile(`File Access Error`),
 			},
 		},
 	})

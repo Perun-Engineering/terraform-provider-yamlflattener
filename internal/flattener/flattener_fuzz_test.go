@@ -74,8 +74,8 @@ func FuzzFlattenYAML(f *testing.F) {
 		}
 
 		// Ensure result doesn't exceed maximum size
-		if len(result) > flattener.MaxResultSize {
-			t.Fatalf("Result size %d exceeds MaxResultSize %d", len(result), flattener.MaxResultSize)
+		if len(result) > flattener.maxResultSize {
+			t.Fatalf("Result size %d exceeds maxResultSize %d", len(result), flattener.maxResultSize)
 		}
 	})
 }

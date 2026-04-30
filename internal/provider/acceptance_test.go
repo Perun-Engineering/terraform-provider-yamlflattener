@@ -389,7 +389,7 @@ data "yamlflattener_flatten" "missing_file" {
   yaml_file = "/path/that/does/not/exist.yaml"
 }
 `,
-				ExpectError: regexp.MustCompile("failed to read YAML file"),
+				ExpectError: regexp.MustCompile("failed to access YAML file"),
 			},
 			{
 				// Test conflicting parameters
@@ -401,7 +401,7 @@ data "yamlflattener_flatten" "conflicting_params" {
   yaml_file = "/some/file.yaml"
 }
 `,
-				ExpectError: regexp.MustCompile("only one of yaml_content or yaml_file should be specified"),
+				ExpectError: regexp.MustCompile("Only one of yaml_content or yaml_file should be provided"),
 			},
 			{
 				// Test missing parameters
@@ -411,7 +411,7 @@ provider "yamlflattener" {}
 data "yamlflattener_flatten" "missing_params" {
 }
 `,
-				ExpectError: regexp.MustCompile("either yaml_content or yaml_file must be specified"),
+				ExpectError: regexp.MustCompile("Either yaml_content or yaml_file must be provided"),
 			},
 		},
 	})
