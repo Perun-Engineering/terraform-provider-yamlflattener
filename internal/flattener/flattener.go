@@ -140,6 +140,10 @@ func (f *Flattener) FlattenYAMLString(yamlContent string) (map[string]string, er
 		return nil, ValidationError("YAML content cannot be empty", nil)
 	}
 
+	if strings.TrimSpace(yamlContent) == "" {
+		return nil, ValidationError("YAML content cannot contain only whitespace", nil)
+	}
+
 	if len(yamlContent) > f.MaxYAMLSize {
 		return nil, SizeLimitError(f.MaxYAMLSize, "YAML content")
 	}

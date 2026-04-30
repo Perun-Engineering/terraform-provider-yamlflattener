@@ -253,6 +253,12 @@ func TestFlattenYAMLString(t *testing.T) {
 			wantErr:    true,
 		},
 		{
+			name:       "Whitespace-only YAML string",
+			yamlString: "   \n\t  \n  ",
+			expected:   nil,
+			wantErr:    true,
+		},
+		{
 			name:       "Invalid YAML string",
 			yamlString: "key: : value",
 			expected:   nil,

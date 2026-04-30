@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/function"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -45,12 +44,6 @@ func (fn *flattenFunction) Run(ctx context.Context, req function.RunRequest, res
 
 	resp.Error = function.ConcatFuncErrors(resp.Error, req.Arguments.Get(ctx, &yamlContent))
 	if resp.Error != nil {
-		return
-	}
-
-	yamlContent = strings.TrimSpace(yamlContent)
-	if yamlContent == "" {
-		resp.Error = function.ConcatFuncErrors(resp.Error, function.NewFuncError("YAML content cannot be empty or contain only whitespace"))
 		return
 	}
 
