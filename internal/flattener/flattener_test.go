@@ -1,6 +1,9 @@
 package flattener
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -269,5 +272,82 @@ func TestFlattenYAMLString(t *testing.T) {
 				t.Errorf("FlattenYAMLString() = %v, want %v", result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestFlattenYAMLFile(t *testing.T) {
+	t.Run("valid file", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "test.yaml")
+		if err := os.WriteFile(path, []byte("key: value\nnested:\n  child: val"), 0600); err != nil {
+			t.Fatal(err)
+		}
+
+		f := New()
+		result, err := f.FlattenYAMLFile(path)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		expected := map[string]string{"key": "value", "nested.child": "val"}
+		if !reflect.DeepEqual(result, expected) {
+			t.Errorf("got %v, want %v", result, expected)
+		}
+	})
+
+	t.Run("empty path", func(t *testing.T) {
+		f := New()
+		_, err := f.FlattenYAMLFile("")
+		assertErrorType(t, err, ErrTypeValidation)
+	})
+
+	t.Run("path traversal rejected", func(t *testing.T) {
+		f := New()
+		_, err := f.FlattenYAMLFile("../../etc/passwd")
+		assertErrorType(t, err, ErrTypePathSecurity)
+	})
+
+	t.Run("nonexistent file", func(t *testing.T) {
+		f := New()
+		_, err := f.FlattenYAMLFile("/tmp/nonexistent_yaml_file_test.yaml")
+		assertErrorType(t, err, ErrTypeFileAccess)
+	})
+
+	t.Run("file exceeds size limit", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "big.yaml")
+		if err := os.WriteFile(path, make([]byte, 1024), 0600); err != nil {
+			t.Fatal(err)
+		}
+
+		f := New()
+		f.MaxYAMLSize = 512
+		_, err := f.FlattenYAMLFile(path)
+		assertErrorType(t, err, ErrTypeSizeLimit)
+	})
+
+	t.Run("invalid yaml in file", func(t *testing.T) {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "bad.yaml")
+		if err := os.WriteFile(path, []byte("key: : bad"), 0600); err != nil {
+			t.Fatal(err)
+		}
+
+		f := New()
+		_, err := f.FlattenYAMLFile(path)
+		assertErrorType(t, err, ErrTypeParsing)
+	})
+}
+
+func assertErrorType(t *testing.T, err error, expected ErrorType) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("expected %s error, got nil", expected)
+	}
+	var fe *Error
+	if !errors.As(err, &fe) {
+		t.Fatalf("expected *Error, got %T: %v", err, err)
+	}
+	if fe.Type != expected {
+		t.Errorf("expected error type %s, got %s: %v", expected, fe.Type, err)
 	}
 }

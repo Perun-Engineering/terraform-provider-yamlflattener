@@ -3,6 +3,8 @@ package flattener
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -165,6 +167,41 @@ func (f *Flattener) FlattenYAMLString(yamlContent string) (map[string]string, er
 	}
 
 	return f.FlattenYAML(yamlData)
+}
+
+// FlattenYAMLFile reads a YAML file and flattens it into a map with dot notation.
+// It validates the path for security (rejects directory traversal), checks file size
+// against MaxYAMLSize, and delegates to FlattenYAMLString for parsing and flattening.
+func (f *Flattener) FlattenYAMLFile(path string) (map[string]string, error) {
+	if path == "" {
+		return nil, ValidationError("file path cannot be empty", nil)
+	}
+
+	cleanPath := filepath.Clean(path)
+	if strings.Contains(cleanPath, "..") {
+		return nil, PathSecurityError("file path contains invalid directory traversal patterns")
+	}
+
+	absPath, err := filepath.Abs(cleanPath)
+	if err != nil {
+		return nil, FileAccessError(fmt.Sprintf("invalid file path: %s", err), err)
+	}
+
+	fileInfo, err := os.Stat(absPath)
+	if err != nil {
+		return nil, FileAccessError(fmt.Sprintf("failed to access YAML file: %s", err), err)
+	}
+
+	if fileInfo.Size() > int64(f.MaxYAMLSize) {
+		return nil, SizeLimitError(f.MaxYAMLSize, "YAML file")
+	}
+
+	content, err := os.ReadFile(absPath) // #nosec G304 - absPath is validated
+	if err != nil {
+		return nil, FileAccessError(fmt.Sprintf("failed to read YAML file: %s", err), err)
+	}
+
+	return f.FlattenYAMLString(string(content))
 }
 
 // sanitizeKey sanitizes a map key to prevent injection attacks

@@ -2,10 +2,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -93,50 +89,15 @@ func (d *flattenDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		f = flattener.New()
 	}
 
-	var yamlContent string
+	var flattenedMap map[string]string
+	var err error
 
 	if !data.YAMLFile.IsNull() {
-		filePath := data.YAMLFile.ValueString()
-		if filePath == "" {
-			resp.Diagnostics.AddError("Invalid Input", "yaml_file path cannot be empty")
-			return
-		}
-
-		cleanPath := filepath.Clean(filePath)
-		if strings.Contains(cleanPath, "..") {
-			resp.Diagnostics.AddError("Security Error", "file path contains invalid directory traversal patterns")
-			return
-		}
-
-		absPath, err := filepath.Abs(cleanPath)
-		if err != nil {
-			resp.Diagnostics.AddError("Invalid Input", fmt.Sprintf("invalid file path: %s", err))
-			return
-		}
-
-		fileInfo, err := os.Stat(absPath)
-		if err != nil {
-			resp.Diagnostics.AddError("File Access Error", fmt.Sprintf("failed to access YAML file: %s", err))
-			return
-		}
-
-		if fileInfo.Size() > int64(f.MaxYAMLSize) {
-			resp.Diagnostics.AddError("Size Limit Exceeded", fmt.Sprintf("YAML file size exceeds maximum of %d bytes", f.MaxYAMLSize))
-			return
-		}
-
-		content, err := os.ReadFile(absPath) // #nosec G304 - absPath is validated
-		if err != nil {
-			resp.Diagnostics.AddError("File Access Error", fmt.Sprintf("failed to read YAML file: %s", err))
-			return
-		}
-
-		yamlContent = string(content)
+		flattenedMap, err = f.FlattenYAMLFile(data.YAMLFile.ValueString())
 	} else {
-		yamlContent = data.YAMLContent.ValueString()
+		flattenedMap, err = f.FlattenYAMLString(data.YAMLContent.ValueString())
 	}
 
-	flattenedMap, err := f.FlattenYAMLString(yamlContent)
 	if err != nil {
 		resp.Diagnostics.AddError(errorTitle(err), err.Error())
 		return
