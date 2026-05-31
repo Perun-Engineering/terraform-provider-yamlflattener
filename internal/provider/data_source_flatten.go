@@ -1,3 +1,5 @@
+// Package provider implements the Terraform provider for yamlflattener,
+// exposing YAML flattening as a data source and a provider function.
 package provider
 
 import (
@@ -24,6 +26,7 @@ type flattenDataSourceModel struct {
 	ID          types.String `tfsdk:"id"`
 }
 
+// NewFlattenDataSource returns a new yamlflattener_flatten data source.
 func NewFlattenDataSource() datasource.DataSource {
 	return &flattenDataSource{}
 }
