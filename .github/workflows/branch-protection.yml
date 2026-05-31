@@ -22,6 +22,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Check PR title
+        if: github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]'
         uses: amannn/action-semantic-pull-request@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -42,6 +43,7 @@ jobs:
           requireScope: false
 
       - name: Check branch name
+        if: github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]'
         run: |
           BRANCH_NAME=${GITHUB_HEAD_REF}
           if [[ ! $BRANCH_NAME =~ ^(feature|bugfix|hotfix|release|docs|refactor|test|ci|chore)/[a-z0-9_-]+$ ]]; then
