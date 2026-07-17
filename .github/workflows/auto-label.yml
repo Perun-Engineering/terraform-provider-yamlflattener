@@ -15,7 +15,7 @@ jobs:
   auto-label:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Auto Label
         uses: actions/labeler@v6
